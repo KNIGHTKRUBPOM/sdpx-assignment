@@ -1,0 +1,806 @@
+openapi: 3.1.0
+info:
+  title: PairEval API
+  version: 2.0.0
+  description: >-
+    RESTful API for PairEval — Pairwise Student Evaluation System for University Group Projects.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://paireval.example.ac.th/api
+    description: Production API Server
+paths:
+  /classrooms:
+    get:
+      summary: List classrooms for authenticated user
+      operationId: listClassrooms
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of classrooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Classroom'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    post:
+      summary: Create a new classroom
+      operationId: createClassroom
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClassroomRequest'
+      responses:
+        '201':
+          description: Classroom created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Classroom'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /classrooms/{id}/roster:import:
+    post:
+      summary: Atomic CSV roster import
+      operationId: importRosterCsv
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Roster imported successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - importedStudents
+                  - importedGroups
+                properties:
+                  importedStudents:
+                    type: integer
+                  importedGroups:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /classrooms/{id}/roster:
+    get:
+      summary: Get classroom roster and groups
+      operationId: getClassroomRoster
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Classroom roster
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /assignments:
+    post:
+      summary: Create an assignment
+      operationId: createAssignment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssignmentRequest'
+      responses:
+        '201':
+          description: Assignment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /assignments/{id}:
+    patch:
+      summary: Update draft assignment
+      operationId: updateAssignment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAssignmentRequest'
+      responses:
+        '200':
+          description: Assignment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /assignments/{id}/feasibility:
+    get:
+      summary: Calculate pairing feasibility before publishing
+      operationId: getAssignmentFeasibility
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Feasibility report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeasibilityResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /assignments/{id}:publish:
+    post:
+      summary: Publish assignment and generate pairs
+      operationId: publishAssignment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Assignment published and pairs generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /assignments/{id}:finalize:
+    post:
+      summary: Finalize assignment scores
+      operationId: finalizeAssignment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Assignment finalized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /assignments/{id}/my-evaluations:
+    get:
+      summary: Get assigned comparisons for current user
+      operationId: getMyEvaluations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: side
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [GROUP, INDIVIDUAL]
+      responses:
+        '200':
+          description: Evaluation sheet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationSheetResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /comparisons/{pairAssignmentId}:
+    put:
+      summary: Autosave single comparison draft (idempotent)
+      operationId: autosaveComparison
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: pairAssignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - choice
+              properties:
+                choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 6
+                timeOnTaskMs:
+                  type: integer
+      responses:
+        '200':
+          description: Draft autosaved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comparison'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /assignments/{id}/submissions:
+    post:
+      summary: Submit evaluations for an entire side
+      operationId: submitEvaluations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - side
+              properties:
+                side:
+                  type: string
+                  enum: [GROUP, INDIVIDUAL]
+      responses:
+        '200':
+          description: Evaluations submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - submittedCount
+                  - participationRatio
+                  - multiplier
+                properties:
+                  submittedCount:
+                    type: integer
+                  participationRatio:
+                    type: number
+                  multiplier:
+                    type: number
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /assignments/{id}/my-score:
+    get:
+      summary: Get authenticated student's final/interim score
+      operationId: getMyScore
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Student score summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentScoreResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequestError:
+      description: Bad request / validation failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ForbiddenError:
+      description: Permission denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+            - requestId
+          properties:
+            code:
+              type: string
+              example: DEADLINE_PASSED
+            message:
+              type: string
+              example: The evaluation deadline for this assignment has passed.
+            field:
+              type: [string, "null"]
+            requestId:
+              type: string
+              example: 01J9X8ABCD1234
+
+    Classroom:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - timezone
+        - status
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        timezone:
+          type: string
+          example: Asia/Bangkok
+        allowedEmailDomains:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [ACTIVE, ARCHIVED]
+
+    CreateClassroomRequest:
+      type: object
+      required:
+        - name
+        - slug
+        - timezone
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        timezone:
+          type: string
+        allowedEmailDomains:
+          type: array
+          items:
+            type: string
+
+    RosterResponse:
+      type: object
+      required:
+        - classroomId
+        - members
+        - groups
+      properties:
+        classroomId:
+          type: string
+        members:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - email
+              - role
+            properties:
+              id:
+                type: string
+              email:
+                type: string
+              displayName:
+                type: string
+              role:
+                type: string
+                enum: [OWNER, CO_TEACHER, TA, STUDENT]
+              groupId:
+                type: [string, "null"]
+        groups:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+
+    Assignment:
+      type: object
+      required:
+        - id
+        - classroomId
+        - name
+        - slug
+        - status
+        - groupMaxScore
+        - individualMaxScore
+      properties:
+        id:
+          type: string
+        classroomId:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        artifactUrl:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, PUBLISHED, OPEN, CLOSED, FINALIZED, ARCHIVED]
+        groupMaxScore:
+          type: number
+        individualMaxScore:
+          type: number
+        groupDeadlineUtc:
+          type: string
+          format: date-time
+        individualDeadlineUtc:
+          type: string
+          format: date-time
+
+    CreateAssignmentRequest:
+      type: object
+      required:
+        - classroomId
+        - name
+        - slug
+        - groupMaxScore
+        - individualMaxScore
+        - criteria
+      properties:
+        classroomId:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        artifactUrl:
+          type: string
+        groupMaxScore:
+          type: number
+        individualMaxScore:
+          type: number
+        criteria:
+          type: array
+          items:
+            $ref: '#/components/schemas/CriterionInput'
+
+    UpdateAssignmentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        artifactUrl:
+          type: string
+        groupMaxScore:
+          type: number
+        individualMaxScore:
+          type: number
+
+    CriterionInput:
+      type: object
+      required:
+        - side
+        - name
+        - weightPct
+      properties:
+        side:
+          type: string
+          enum: [GROUP, INDIVIDUAL]
+        name:
+          type: string
+        description:
+          type: string
+        weightPct:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    FeasibilityResponse:
+      type: object
+      required:
+        - feasible
+        - targetCoverage
+        - achievableCoverage
+        - workloadPerEvaluator
+        - totalComparisons
+        - message
+      properties:
+        feasible:
+          type: boolean
+        targetCoverage:
+          type: integer
+        achievableCoverage:
+          type: integer
+        workloadPerEvaluator:
+          type: integer
+        totalComparisons:
+          type: integer
+        message:
+          type: string
+
+    EvaluationSheetResponse:
+      type: object
+      required:
+        - assignmentId
+        - side
+        - criteria
+        - comparisons
+      properties:
+        assignmentId:
+          type: string
+        side:
+          type: string
+          enum: [GROUP, INDIVIDUAL]
+        criteria:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - weightPct
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              weightPct:
+                type: number
+        comparisons:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssignedComparisonItem'
+
+    AssignedComparisonItem:
+      type: object
+      required:
+        - pairAssignmentId
+        - criterionId
+        - leftItem
+        - rightItem
+      properties:
+        pairAssignmentId:
+          type: string
+        criterionId:
+          type: string
+        leftItem:
+          type: object
+          required:
+            - id
+            - name
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            artifactUrl:
+              type: string
+        rightItem:
+          type: object
+          required:
+            - id
+            - name
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            artifactUrl:
+              type: string
+        currentChoice:
+          type: [integer, "null"]
+          minimum: 1
+          maximum: 6
+
+    Comparison:
+      type: object
+      required:
+        - id
+        - pairAssignmentId
+        - choice
+        - status
+      properties:
+        id:
+          type: string
+        pairAssignmentId:
+          type: string
+        choice:
+          type: integer
+        status:
+          type: string
+          enum: [DRAFT, SUBMITTED, EXCLUDED]
+        savedAt:
+          type: string
+          format: date-time
+
+    StudentScoreResponse:
+      type: object
+      required:
+        - isFinal
+        - participationRatio
+        - multiplier
+        - finalPersonalScore
+      properties:
+        isFinal:
+          type: boolean
+        groupScore:
+          type: number
+        individualScore:
+          type: number
+        participationRatio:
+          type: number
+        multiplier:
+          type: number
+        finalPersonalScore:
+          type: number
+        label:
+          type: string
+          example: ชั่วคราว — อาจเปลี่ยนแปลงได้

@@ -1,0 +1,24 @@
+{
+  "name": "paireval",
+  "version": "1.0.0",
+  "description": "PairEval - Pairwise Comparison Student Evaluation System (CE-SDPX Project)",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint:spec": "npx @redocly/cli lint docs/openapi.yaml",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["pairwise", "evaluation", "sdpx", "peer-assessment"],
+  "author": "CE-SDPX Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@redocly/cli": "^1.25.12",
+    "@types/node": "^22.13.4",
+    "fast-check": "^3.23.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}
