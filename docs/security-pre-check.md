@@ -18,4 +18,6 @@ Production dependency audit reported zero known vulnerabilities during local imp
 
 Google uses verified email and hosted-domain claims, not a browser-supplied role or hd hint. Account linkage also checks the immutable Google subject. Runtime errors return a generic request ID and never expose SQL/stack traces.
 
-Relevant risks: broken access control (IDOR/classroom scope), cryptographic/identity failures (OAuth/session), and injection/data-integrity errors (CSV/SQL). Remaining release checks: real OAuth account linkage, manual screen reader, deployment secret configuration, full history secret scan and independent code review. The pilot has no automatic PDPA retention workflow or formal security certification.
+Gitleaks 8.30.1 scans full Git history. The exact historical fingerprint for `submission_key_001` in the original API test is allowlisted: it is a synthetic idempotency key, not a credential. No broad rule or path exclusion is used.
+
+Relevant risks: broken access control (IDOR/classroom scope), cryptographic/identity failures (OAuth/session), and injection/data-integrity errors (CSV/SQL). Remaining release checks: real OAuth account linkage, manual screen reader, deployment secret configuration and independent code review. The pilot has no automatic PDPA retention workflow or formal security certification.

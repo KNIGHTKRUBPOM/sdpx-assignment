@@ -1,0 +1,2 @@
+# Original regression fixture: literal submission_key_001 is an idempotency key, not an authentication secret.
+de355b0d03b47993d8ac7cbad5c4bcfb4f652968:tests/api.test.ts:generic-api-key:181
