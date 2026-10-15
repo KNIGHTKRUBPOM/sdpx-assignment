@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { Header, Footer } from "./header";
 import { api, dateText, statusLabel } from "./api";
+import { Pending, LinkPending } from "./pending";
 
 interface Room {
   classroom: { id: string; name: string; slug: string; domains: string[] };
@@ -39,6 +40,8 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
+  const [groupFilter, setGroupFilter] = useState("");
+  const [search, setSearch] = useState("");
   const load = async () => {
     const dashboard = await api<Dashboard>("/dashboard");
     setData(dashboard);
@@ -53,13 +56,15 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
   useEffect(() => {
     void load().catch((e) => setError(e.message));
   }, [classroomId]); // eslint-disable-line react-hooks/exhaustive-deps
-  const act = async (task: () => Promise<unknown>, success: string) => {
+  const act = async (task: () => Promise<unknown>, success: string, rosterOnly = false) => {
+    if (busy) return;
     setBusy(true);
     setError("");
     setMessage("");
     try {
       await task();
-      await load();
+      if (rosterOnly && classroomId) setRoster(await api<Roster>(`/classrooms/${classroomId}/roster`));
+      else await load();
       setMessage(success);
     } catch (e) {
       setError(e instanceof Error ? e.message : "ระบบขัดข้อง");
@@ -68,6 +73,10 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
     }
   };
   const room = data?.classrooms.find((r) => r.classroom.id === classroomId);
+  const visibleMembers = roster?.members.filter((m) =>
+    (!groupFilter || m.groupId === groupFilter) &&
+    `${m.name} ${m.email}`.toLowerCase().includes(search.trim().toLowerCase()),
+  ) ?? [];
   const work =
     data?.assignments.filter(
       (a) => !classroomId || a.classroomId === classroomId,
@@ -91,12 +100,15 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
     <div className="shell">
       <Header />
       <main className="content">
+        {(!data && !error) && <Pending text="กำลังโหลดห้องเรียน…" />}
+        {busy && <div className="operation-status"><Pending /></div>}
         <div className="pagehead">
           <div>
             <span className="eyebrow">YOUR LEARNING SPACE</span>
             {classroomId && (
               <Link href="/dashboard" className="backlink">
                 ← ห้องเรียนทั้งหมด
+                <LinkPending />
               </Link>
             )}
             <h1>{room?.classroom.name || "ห้องเรียนของฉัน"}</h1>
@@ -133,6 +145,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
             </p>
             <button
               className="button small"
+              disabled={busy}
               onClick={() =>
                 void act(
                   () => api("/privacy", "POST", {}),
@@ -158,6 +171,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                     <span>↗</span>
                   </div>
                   <h2>{r.classroom.name}</h2>
+                  <LinkPending />
                   <p>
                     {
                       data.assignments.filter(
@@ -234,6 +248,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                 <span>↗</span>
               </div>
               <h3>{a.name}</h3>
+              <LinkPending />
               <p className="muted">ปิดรับ {dateText(a.closesAt)}</p>
               <span className="muted">เปิดงานประเมิน →</span>
             </Link>
@@ -264,8 +279,15 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
           <div className="two-col">
             <section>
               <h2 className="section-title">รายชื่อและกลุ่ม</h2>
+              <div className="card form-row">
+                <label>ค้นหาชื่อหรืออีเมล<input type="search" data-testid="roster-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="เช่น 67015105" /></label>
+                <label>แสดงกลุ่ม<select data-testid="group-filter" value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)}>
+                  <option value="">ทุกกลุ่ม ({roster.members.length} คน)</option>
+                  {roster.groups.map((g) => <option key={g.id} value={g.id}>{g.name} ({roster.members.filter((m) => m.groupId === g.id).length} คน)</option>)}
+                </select></label>
+              </div>
               <div className="card table-wrap">
-                <table>
+                <table data-testid="roster-table">
                   <thead>
                     <tr>
                       <th>ชื่อ</th>
@@ -274,7 +296,8 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {roster.members.map((m) => (
+                    {visibleMembers.length === 0 && <tr><td colSpan={3}>ไม่พบรายชื่อที่ตรงกับการค้นหา</td></tr>}
+                    {visibleMembers.map((m) => (
                       <tr key={m.id}>
                         <td>{m.name}</td>
                         <td>{m.email}</td>
@@ -287,10 +310,11 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                   </tbody>
                 </table>
               </div>
-              {roster.groups.map((g) => (
+              {roster.groups.filter((g) => !groupFilter || g.id === groupFilter).map((g) => (
+                <details className="card" key={g.id}>
+                  <summary>{g.name} · {g.artifactUrl ? "มีลิงก์ผลงานแล้ว" : "ยังไม่มีลิงก์ผลงาน"}</summary>
                 <form
-                  className="card stack"
-                  key={g.id}
+                  className="stack"
                   onSubmit={(e) => {
                     e.preventDefault();
                     const f = new FormData(e.currentTarget);
@@ -301,7 +325,8 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                           "PATCH",
                           { artifactUrl: f.get("url") },
                         ),
-                      "บันทึกลิงก์ผลงานแล้ว",
+                      `บันทึกลิงก์ ${g.name} แล้ว`,
+                      true,
                     );
                   }}
                 >
@@ -310,6 +335,8 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                     ลิงก์ผลงาน
                     <input
                       name="url"
+                      data-testid={`artifact-url-${g.id}`}
+                      disabled={busy}
                       type="url"
                       defaultValue={g.artifactUrl}
                       required
@@ -317,9 +344,11 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                     />
                   </label>
                   <button className="button secondary small" disabled={busy}>
-                    บันทึกลิงก์
+                    {busy ? "กำลังบันทึก…" : "บันทึกลิงก์"}
                   </button>
+                  {g.artifactUrl && <a href={g.artifactUrl} target="_blank" rel="noopener noreferrer">เปิดผลงานที่บันทึกไว้ ↗</a>}
                 </form>
+                </details>
               ))}
             </section>
             <section>

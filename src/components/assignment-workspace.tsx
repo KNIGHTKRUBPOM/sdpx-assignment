@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Header, Footer } from "./header";
 import { api, dateText, statusLabel } from "./api";
+import { Pending, LinkPending } from "./pending";
 import type { StudentScore } from "../domain/model";
 import type { ItemScoreSummary } from "../core/types";
 import type { QualitySignalReport } from "../core/quality-signals/quality-signals";
@@ -90,13 +91,14 @@ export function AssignmentWorkspace({ id }: { id: string }) {
   useEffect(() => {
     void load().catch((e) => setError(e.message));
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const act = async (task: () => Promise<unknown>, text: string) => {
+  const act = async (task: () => Promise<unknown>, text: string, refresh = true) => {
+    if (busy) return;
     setBusy(true);
     setError("");
     setMessage("");
     try {
       await task();
-      await load();
+      if (refresh) await load();
       setMessage(text);
     } catch (e) {
       setError(e instanceof Error ? e.message : "ระบบขัดข้อง");
@@ -105,6 +107,10 @@ export function AssignmentWorkspace({ id }: { id: string }) {
     }
   };
   const selectTab = async (next: string) => {
+    if (busy) return;
+    setBusy(true);
+    setEvaluation(undefined);
+    setSelfScore(undefined);
     setTab(next);
     setError("");
     setMessage("");
@@ -133,6 +139,8 @@ export function AssignmentWorkspace({ id }: { id: string }) {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "ระบบขัดข้อง");
+    } finally {
+      setBusy(false);
     }
   };
   const save = async (choice: number) => {
@@ -170,7 +178,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
         setEvaluation(previous);
         throw error;
       }
-    }, "✓ บันทึกฉบับร่างแล้ว");
+    }, "✓ บันทึกฉบับร่างแล้ว", false);
   };
   const submit = () =>
     act(async () => {
@@ -209,6 +217,8 @@ export function AssignmentWorkspace({ id }: { id: string }) {
     <div className="shell">
       <Header />
       <main className="content">
+        {!detail && !error && <Pending text="กำลังโหลดงานประเมิน…" />}
+        {busy && <div className="operation-status"><Pending /></div>}
         <div className="pagehead">
           <div>
             <Link
@@ -216,6 +226,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
               href={a ? `/classrooms/${a.classroomId}` : "/dashboard"}
             >
               ← {detail?.classroomName || "ห้องเรียน"}
+              <LinkPending />
             </Link>
             <h1>{a?.name || "กำลังโหลดงานประเมิน…"}</h1>
             <p>{a ? `ปิดรับ ${dateText(a.closesAt)}` : "กรุณารอสักครู่"}</p>
@@ -246,6 +257,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
           ].map(([key, label]) => (
             <button
               role="tab"
+              disabled={busy}
               aria-selected={tab === key}
               key={key}
               className={tab === key ? "active" : ""}

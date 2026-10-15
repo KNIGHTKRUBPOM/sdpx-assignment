@@ -630,3 +630,11 @@ hr {
     flex-wrap: wrap;
   }
 }
+/* Visible progress without blocking navigation or keyboard focus. */
+.pending { display: inline-flex; align-items: center; gap: 10px; }
+.two-col > section, .form-row > label { min-width: 0; }
+.spinner { width: 18px; height: 18px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; flex-shrink: 0; }
+.operation-status { position: sticky; top: 12px; z-index: 20; background: #e8f2e7; color: #143e32; border: 1px solid #bdd6bf; border-radius: 12px; padding: 12px 18px; margin-bottom: 16px; }
+button:disabled { cursor: wait; opacity: .65; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LinkPending } from "./pending";
 export function Header() {
   return (
     <header className="topbar">
@@ -16,6 +17,7 @@ export function Header() {
           data-testid="dashboard-link"
         >
           ห้องเรียนของฉัน ↗
+          <LinkPending />
         </Link>
       </nav>
     </header>
