@@ -62,6 +62,9 @@ export interface PairAssignment {
 
 export interface SubmittedComparison {
   id: string;
+  /** Required by the persistent application; optional for legacy fixtures. */
+  assignmentId?: string;
+  criterionId?: string;
   pairAssignmentId: string;
   evaluatorUserId: string;
   isInstructor: boolean;
