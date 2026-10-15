@@ -5,6 +5,7 @@ Environment: Windows development host, Docker Desktop PostgreSQL 17.6, local Nex
 ## Observed checks
 
 - Unit and legacy regression: 51 tests pass; the original 43 tests are retained.
+- Pure core/scoring/policy/pairing coverage: 91.72% statements and 85.58% branches. This coverage scope excludes the UI, HTTP/service and infrastructure scripts; their behavior is exercised separately by integration and browser tests.
 - PostgreSQL integration: 12 tests pass, including transactional import, pair ownership, concurrent version conflicts, re-submission/idempotency, staff identity redaction and immutable finalization.
 - Playwright: four scenarios repeated three times, 12/12 pass. Landing and mobile evaluation automated axe checks pass. This does not certify full WCAG AA or real Google consent.
 - Restricted runtime and restore drill pass: full lifecycle succeeds with the app role; audit update, score deletion and DDL fail. AES-GCM restore preserves all 12 table counts and the final snapshot. Corrupted backups and nonempty target schemas are rejected. Managed schemas are preserved.

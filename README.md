@@ -62,6 +62,7 @@ Cloud เป้าหมาย: Vercel Hobby + Supabase Free (แยก staging/
 - [Test plan](TEST_PLAN.md), [WS1–8 evidence checklist](docs/ws-evidence.md), [security review](docs/security-pre-check.md)
 - [Deployment and restore](docs/deployment.md), [decisions](docs/adr/ADR-004-pilot-deployment.md)
 - [Measured performance and verification](docs/verification.md)
+- [Current cloud setup status](docs/cloud-status.md)
 
 ## ขอบเขตและข้อจำกัด
 
