@@ -55,9 +55,11 @@ if (restore) {
     await client.end();
   }
 }
+const loopbackDatabase = ["localhost", "127.0.0.1"].includes(url.hostname);
+const linuxHostNetwork = process.platform === "linux" && loopbackDatabase;
 const env = {
   ...process.env,
-  PGHOST: ["localhost", "127.0.0.1"].includes(url.hostname)
+  PGHOST: loopbackDatabase && !linuxHostNetwork
     ? "host.docker.internal"
     : url.hostname,
   PGPORT: url.port || "5432",
@@ -70,6 +72,7 @@ const args = [
   "run",
   "--rm",
   "-i",
+  ...(linuxHostNetwork ? ["--network", "host"] : []),
   "--add-host",
   "host.docker.internal:host-gateway",
   ...[

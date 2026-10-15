@@ -106,6 +106,9 @@ try {
       "run",
       "--rm",
       "-i",
+      ...(process.platform === "linux" && process.getuid && process.getgid
+        ? ["--user", `${process.getuid()}:${process.getgid()}`]
+        : []),
       "--add-host",
       "host.docker.internal:host-gateway",
       "-e",
