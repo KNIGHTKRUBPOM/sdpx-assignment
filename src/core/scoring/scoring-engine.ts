@@ -120,7 +120,7 @@ export function computeItemScores(
 
     const { qualityIndex, comparisonCount, effectiveWeightSum } = computeQualityIndex(
       itemId,
-      comparisons,
+      comparisons.filter(c => c.criterionId === undefined || c.criterionId === crit.id),
       config.instructorWeight,
     );
 

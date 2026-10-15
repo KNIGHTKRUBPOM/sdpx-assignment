@@ -13,6 +13,18 @@ coverage/
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
+.next/
+out/
+*.tsbuildinfo
+playwright-report/
+test-results/
+.vercel/
+artifacts/
+backups/
+supabase/.temp/
+supabase/.branches/
 
 # OS files
 .DS_Store
