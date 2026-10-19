@@ -22,6 +22,7 @@ interface Work {
   status: string;
   closesAt: string;
   myProgress: MyProgress;
+  config: { individualMaxScore: number };
 }
 interface Dashboard {
   user: { name: string; email: string };
@@ -266,7 +267,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                 <span>↗</span>
               </div>
               <h3>{a.name}</h3>
-              {a.myProgress && (a.myProgress.GROUP.total + a.myProgress.INDIVIDUAL.total > 0) && <EvaluationProgress progress={a.myProgress} compact />}
+              {a.myProgress && (a.myProgress.GROUP.total + a.myProgress.INDIVIDUAL.total > 0) && <EvaluationProgress progress={a.myProgress} individualDisabled={a.config.individualMaxScore === 0} compact />}
               <LinkPending />
               <p className="muted">ปิดรับ {dateText(a.closesAt)}</p>
               <span className="muted">เปิดงานประเมิน →</span>
@@ -480,6 +481,7 @@ function AssignmentForm({
       weightPct: 100,
     },
   ]);
+  const [individualMaxScore, setIndividualMaxScore] = useState(5);
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -488,7 +490,7 @@ function AssignmentForm({
       name: f.get("name"),
       opensAt: new Date(String(f.get("opensAt"))).toISOString(),
       closesAt: new Date(String(f.get("closesAt"))).toISOString(),
-      criteria,
+      criteria: criteria.filter(c => c.side === "GROUP" || individualMaxScore > 0),
       config: {
         groupMaxScore: Number(f.get("groupMaxScore")),
         individualMaxScore: Number(f.get("individualMaxScore")),
@@ -531,15 +533,18 @@ function AssignmentForm({
           คะแนนเต็มรายบุคคล
           <input
             name="individualMaxScore"
+            data-testid="individual-max-score"
             type="number"
-            min="1"
+            min="0"
             max="100"
-            defaultValue="5"
+            value={individualMaxScore}
+            onChange={e => setIndividualMaxScore(Number(e.target.value))}
             required
           />
+          <span className="muted">ใส่ 0 เพื่อปิดการประเมินรายบุคคล</span>
         </label>
       </div>
-      {["GROUP", "INDIVIDUAL"].map((side) => (
+      {(individualMaxScore === 0 ? ["GROUP"] : ["GROUP", "INDIVIDUAL"]).map((side) => (
         <div key={side}>
           <h3>
             {side === "GROUP" ? "เกณฑ์งานกลุ่ม" : "เกณฑ์รายบุคคล"}{" "}

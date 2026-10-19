@@ -20,6 +20,7 @@ interface Detail {
     classroomId: string;
     status: string;
     closesAt: string;
+    config: { individualMaxScore: number };
   };
   role: string;
   classroomName: string;
@@ -246,6 +247,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
     isStaff = detail && ["OWNER", "CO_TEACHER"].includes(detail.role),
     pair = evaluation?.comparisons[index];
   const isOpen = a?.status === "OPEN" && !detail?.classroomArchived;
+  const individualDisabled = a?.config.individualMaxScore === 0 && !detail?.myProgress.INDIVIDUAL.total;
   const guide = detail?.instructorGuide;
   const suggested = guide?.suggestions.find(p => p.key === suggestionKey) ?? guide?.suggestions[0];
   return (
@@ -289,7 +291,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
                   ["INDIVIDUAL", "ประเมินรายบุคคล"],
                 ]
               : []),
-          ].map(([key, label]) => (
+          ].filter(([key]) => key !== "INDIVIDUAL" || !individualDisabled).map(([key, label]) => (
             <button
               role="tab"
               disabled={busy}
@@ -317,7 +319,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
           <div className="row"><button className="button secondary small" data-testid="instructor-open-reports" disabled={busy} onClick={() => void selectTab("reports")}>ดูรายงานและตรวจความครบถ้วน</button>
           <button className="button secondary small" data-testid="instructor-refresh-guide" disabled={busy} onClick={() => void act(load, "อัปเดตสถานะแล้ว", false)}>อัปเดตสถานะ ↻</button></div>
         </section>}
-        {detail?.myProgress && (detail.role === "STUDENT" || isStaff) && <EvaluationProgress progress={detail.myProgress} instructor={!!isStaff} onOpen={busy ? undefined : (side) => void selectTab(side)} readOnly={!isOpen} />}
+        {detail?.myProgress && (detail.role === "STUDENT" || isStaff) && <EvaluationProgress progress={detail.myProgress} individualDisabled={individualDisabled} instructor={!!isStaff} onOpen={busy ? undefined : (side) => void selectTab(side)} readOnly={!isOpen} />}
         {tab === "overview" && (
           <div className="two-col">
             <section className="card">
@@ -340,11 +342,11 @@ export function AssignmentWorkspace({ id }: { id: string }) {
                 ระบบบันทึกเมื่อเลือกคำตอบ แต่ต้องกดส่งผลการประเมินของแต่ละส่วน
                 คะแนนจึงจะนำไปคำนวณได้ แก้ไขและส่งใหม่ได้ก่อนหมดเวลา
               </p>
-              <div className="notice">
+              {!individualDisabled && <div className="notice">
                 คะแนนรายบุคคลจะเปิดเผยเมื่อมีผู้ประเมินอย่างน้อย 3 คน
                 กลุ่มเล็กอาจยังมีข้อมูลไม่พอ ส่วนกลุ่ม 2
                 คนไม่สามารถประเมินรายบุคคลได้
-              </div>
+              </div>}
             </section>
             <section className="card">
               <h3>{isStaff ? "จัดการงานประเมิน" : "สถานะงาน"}</h3>

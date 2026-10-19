@@ -568,6 +568,8 @@ export class PairEvalService {
         "INVALID_PAIR",
         "คู่หรือเกณฑ์ไม่ถูกต้อง",
       );
+      requireRule(criterion.side !== "INDIVIDUAL" || a.config.individualMaxScore > 0,
+        "INDIVIDUAL_DISABLED", "งานนี้ปิดการประเมินรายบุคคล", 409);
       const data = await this.classData(tx, a.classroomId);
       if (criterion.side === "GROUP")
         requireRule(
@@ -741,7 +743,7 @@ export class PairEvalService {
         feasibility.message,
         409,
       );
-      const generated = a.criteria.flatMap((c) =>
+      const generated = a.criteria.filter(c => c.side === "GROUP" || a.config.individualMaxScore > 0).flatMap((c) =>
         c.side === "GROUP"
           ? balancedGroupPairs({
               assignmentId,

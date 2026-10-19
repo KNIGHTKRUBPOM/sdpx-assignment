@@ -26,6 +26,7 @@ export function scoreItem(
     totalComponentScore: 0,
     flags: [],
   };
+  if (side === "INDIVIDUAL" && config.individualMaxScore === 0) return result;
   let total = new Decimal(0);
   for (const c of criteria.filter((c) => c.side === side)) {
     const relevant = comparisons.filter(
