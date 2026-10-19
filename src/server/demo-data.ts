@@ -176,10 +176,9 @@ export function seedDemoData() {
     memoryStore.pairAssignments.set(p.id, p);
   }
 
-  // 7. Seed evaluations where Aurora is evaluated by other peers & instructor
-  // Pair: Aurora vs Borealis (evaluated by Alice from Cosmos)
-  const paAurora1 = {
-    id: 'pa_ext_1',
+  // 7. Seed evaluations where Aurora is evaluated by peers (Alice from Cosmos, Bob from Borealis)
+  const paAlice1 = {
+    id: 'pa_alice_1',
     assignmentId,
     criterionId: critUxId,
     side: 'GROUP' as const,
@@ -191,21 +190,34 @@ export function seedDemoData() {
     source: 'AUTO' as const,
     createdAt: new Date(),
   };
-  memoryStore.pairAssignments.set(paAurora1.id, paAurora1);
-  memoryStore.comparisons.set('cmp_ext_1', {
-    id: 'cmp_ext_1',
-    pairAssignmentId: paAurora1.id,
+  const paAlice2 = {
+    id: 'pa_alice_2',
+    assignmentId,
+    criterionId: critCompId,
+    side: 'GROUP' as const,
+    itemAId: grpAurora.id,
+    itemBId: grpNebula.id,
     evaluatorUserId: 'std_alice',
-    choice: 2, // Aurora ดีกว่า -> 0.8
-    status: 'SUBMITTED',
-    timeOnTaskMs: 4200,
-    savedAt: new Date(),
-    submittedAt: new Date(),
-  });
-
-  // Pair: Aurora vs Cosmos (evaluated by Bob from Borealis)
-  const paAurora2 = {
-    id: 'pa_ext_2',
+    displayLeftItemId: grpAurora.id,
+    generation: 1,
+    source: 'AUTO' as const,
+    createdAt: new Date(),
+  };
+  const paBob1 = {
+    id: 'pa_bob_1',
+    assignmentId,
+    criterionId: critUxId,
+    side: 'GROUP' as const,
+    itemAId: grpAurora.id,
+    itemBId: grpCosmos.id,
+    evaluatorUserId: 'std_bob',
+    displayLeftItemId: grpAurora.id,
+    generation: 1,
+    source: 'AUTO' as const,
+    createdAt: new Date(),
+  };
+  const paBob2 = {
+    id: 'pa_bob_2',
     assignmentId,
     criterionId: critCompId,
     side: 'GROUP' as const,
@@ -217,14 +229,50 @@ export function seedDemoData() {
     source: 'AUTO' as const,
     createdAt: new Date(),
   };
-  memoryStore.pairAssignments.set(paAurora2.id, paAurora2);
-  memoryStore.comparisons.set('cmp_ext_2', {
-    id: 'cmp_ext_2',
-    pairAssignmentId: paAurora2.id,
+
+  memoryStore.pairAssignments.set(paAlice1.id, paAlice1);
+  memoryStore.pairAssignments.set(paAlice2.id, paAlice2);
+  memoryStore.pairAssignments.set(paBob1.id, paBob1);
+  memoryStore.pairAssignments.set(paBob2.id, paBob2);
+
+  // Initial comparisons: Alice gave 2 (0.8), Bob gave 1 (1.0)
+  memoryStore.comparisons.set('cmp_alice_1', {
+    id: 'cmp_alice_1',
+    pairAssignmentId: paAlice1.id,
+    evaluatorUserId: 'std_alice',
+    choice: 2,
+    status: 'SUBMITTED',
+    timeOnTaskMs: 4200,
+    savedAt: new Date(),
+    submittedAt: new Date(),
+  });
+  memoryStore.comparisons.set('cmp_alice_2', {
+    id: 'cmp_alice_2',
+    pairAssignmentId: paAlice2.id,
+    evaluatorUserId: 'std_alice',
+    choice: 2,
+    status: 'SUBMITTED',
+    timeOnTaskMs: 3800,
+    savedAt: new Date(),
+    submittedAt: new Date(),
+  });
+  memoryStore.comparisons.set('cmp_bob_1', {
+    id: 'cmp_bob_1',
+    pairAssignmentId: paBob1.id,
     evaluatorUserId: 'std_bob',
-    choice: 1, // Aurora ดีกว่ามาก -> 1.0
+    choice: 1,
     status: 'SUBMITTED',
     timeOnTaskMs: 5100,
+    savedAt: new Date(),
+    submittedAt: new Date(),
+  });
+  memoryStore.comparisons.set('cmp_bob_2', {
+    id: 'cmp_bob_2',
+    pairAssignmentId: paBob2.id,
+    evaluatorUserId: 'std_bob',
+    choice: 1,
+    status: 'SUBMITTED',
+    timeOnTaskMs: 4600,
     savedAt: new Date(),
     submittedAt: new Date(),
   });
