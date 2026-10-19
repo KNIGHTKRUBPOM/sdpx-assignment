@@ -1,0 +1,31 @@
+import { test, expect } from "./fixtures/pilot";
+import { encode } from "next-auth/jwt";
+
+test("renews a valid session silently for twelve hours and rejects an expired session", async ({ page, context, pilot }) => {
+  await pilot.login(pilot.student);
+  await page.goto("/dashboard");
+  const response = await page.request.get("/api/auth/session");
+  const session = await response.json();
+  expect(session.user.id).toBe(pilot.student.id);
+  expect(new Date(session.expires).getTime() - Date.now()).toBeGreaterThan(11.99 * 3600_000);
+  expect(new Date(session.expires).getTime() - Date.now()).toBeLessThanOrEqual(12 * 3600_000);
+  const cookie = (await context.cookies()).find(c => c.name === "next-auth.session-token")!;
+  expect(cookie.expires - Date.now() / 1000).toBeGreaterThan(11.99 * 3600);
+  await page.waitForTimeout(1100);
+  const renewal = page.waitForResponse(r => r.url().endsWith("/api/auth/session") && r.request().method() === "GET");
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  const refreshed = await (await renewal).json();
+  expect(new Date(refreshed.expires).getTime()).toBeGreaterThan(new Date(session.expires).getTime());
+  expect(refreshed.user.id).toBe(session.user.id);
+  await page.getByRole("button", { name: "ออกจากระบบ", exact: true }).click();
+  await expect(page).toHaveURL("http://localhost:3100/");
+  await page.goto("/dashboard");
+  await expect(page).toHaveURL(/\/login$/);
+  expect((await (await page.request.get("/api/auth/session")).json()).user).toBeUndefined();
+  const expired = await encode({ token: { userId: pilot.student.id }, secret: process.env.NEXTAUTH_SECRET!, maxAge: -3600 });
+  await context.clearCookies();
+  await context.addCookies([{ name: cookie.name, value: expired, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" }]);
+  expect((await (await page.request.get("/api/auth/session")).json()).user).toBeUndefined();
+  await page.goto("/dashboard");
+  await expect(page).toHaveURL(/\/login$/);
+});

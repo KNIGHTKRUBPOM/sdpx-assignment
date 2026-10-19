@@ -12,7 +12,7 @@ const localDemo = demoEnabled();
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  session: { strategy: "jwt", maxAge: 8 * 60 * 60 },
+  session: { strategy: "jwt", maxAge: 12 * 60 * 60 },
   pages: { signIn: "/login", error: "/login" },
   providers: localDemo ? [CredentialsProvider({
     id: "demo", name: "บัญชีสาธิต", credentials: { email: { label: "บัญชีสาธิต", type: "text" } },
