@@ -137,3 +137,11 @@ details.card[open] { border-color: #c89568; }
 .demo-footer { color: var(--muted); }
 .error-dialog form .button { margin-top: 0; }
 .error-dialog textarea { min-height: 96px; }
+.evaluation-progress { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.progress-section { min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 20px; background: white; }
+.progress-section .card-top { gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.progress-section p { font-size: 14px; margin: 6px 0; }
+.progress-section .button { margin-top: 12px; }
+.evaluation-progress.compact { display: block; margin: 12px 0; }
+.compact .progress-section { padding: 12px; margin-top: 8px; background: var(--surface-soft); border: 0; border-radius: 12px; }
+@media (max-width: 600px) { .evaluation-progress { grid-template-columns: 1fr; gap: 10px; } .progress-section { padding: 16px; } }

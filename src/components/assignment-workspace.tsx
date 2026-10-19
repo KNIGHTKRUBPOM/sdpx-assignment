@@ -6,6 +6,8 @@ import { api, dateText, statusLabel, errorValue, ApiError } from "./api";
 import { ErrorPopup } from "./error-popup";
 import { NotificationPopup } from "./notification-popup";
 import { Pending, LinkPending } from "./pending";
+import { EvaluationProgress } from "./evaluation-progress";
+import { evaluationProgress, type MyProgress } from "../domain/evaluation-progress";
 import type { StudentScore } from "../domain/model";
 import type { ItemScoreSummary } from "../core/types";
 import type { QualitySignalReport } from "../core/quality-signals/quality-signals";
@@ -21,6 +23,7 @@ interface Detail {
   role: string;
   classroomName: string;
   classroomArchived: boolean;
+  myProgress: MyProgress;
 }
 interface Evaluation {
   assignmentId: string;
@@ -86,6 +89,10 @@ export function AssignmentWorkspace({ id }: { id: string }) {
       achievableCoverage: number;
     }>();
   const [startedAt, setStartedAt] = useState(0);
+  const updateEvaluation = (value: Evaluation) => {
+    setEvaluation(value);
+    setDetail((d) => d ? { ...d, myProgress: { ...d.myProgress, [value.side]: evaluationProgress(value.comparisons) } } : d);
+  };
   const load = async () => {
     const d = await api<Detail>(`/assignments/${id}`);
     setDetail(d);
@@ -120,10 +127,11 @@ export function AssignmentWorkspace({ id }: { id: string }) {
     setIndex(0);
     setStartedAt(eventTime());
     try {
-      if (next === "GROUP" || next === "INDIVIDUAL")
-        setEvaluation(
-          await api(`/assignments/${id}/my-evaluations?side=${next}`),
-        );
+      if (next === "GROUP" || next === "INDIVIDUAL") {
+        const value = await api<Evaluation>(`/assignments/${id}/my-evaluations?side=${next}`);
+        updateEvaluation(value);
+        setIndex(Math.max(0, value.comparisons.findIndex((p) => p.currentChoice === null || p.currentChoice !== p.submittedChoice)));
+      }
       if (next === "score")
         setSelfScore(await api(`/assignments/${id}/my-score`));
       if (next === "reports") {
@@ -169,7 +177,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
             timeOnTaskMs: Date.now() - startedAt,
           },
         );
-        setEvaluation({
+        updateEvaluation({
           ...previous,
           comparisons: previous.comparisons.map((p) =>
             p.pairAssignmentId === current.pairAssignmentId
@@ -191,8 +199,10 @@ export function AssignmentWorkspace({ id }: { id: string }) {
         { side: tab },
         { "Idempotency-Key": crypto.randomUUID() },
       );
-      setEvaluation(await api(`/assignments/${id}/my-evaluations?side=${tab}`));
-    }, "ส่งผลประเมินแล้ว สามารถแก้และส่งใหม่ได้ก่อนหมดเวลา");
+      const value = await api<Evaluation>(`/assignments/${id}/my-evaluations?side=${tab}`);
+      updateEvaluation(value);
+      return evaluationProgress(value.comparisons);
+    }, (p) => `ส่งผลประเมินแล้ว ${p.submitted}/${p.total} คู่${p.outstanding ? ` · ยังขาด ${p.outstanding} คู่ในส่วนนี้` : " · ส่งครบในส่วนนี้แล้ว"} สามารถแก้และส่งใหม่ได้ก่อนหมดเวลา`);
   const download = async (report: string) => {
     await act(async () => {
       const response = await fetch(`/api/assignments/${id}/exports`, {
@@ -273,6 +283,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
         <ErrorPopup error={error} onDismiss={() => setError("")} />
         {detail?.classroomArchived && <div className="notice" data-testid="archived-notice"><strong>ห้องเรียนนี้เก็บถาวรแล้ว · อ่านอย่างเดียว</strong><p>ดูคำตอบและรายงานเดิมได้ แต่ไม่สามารถบันทึก ส่งประเมิน หรือแก้คะแนนได้</p></div>}
         <NotificationPopup message={message} onDismiss={() => setMessage("")} testId="autosave-status" autoDismiss={message.startsWith("✓ บันทึกฉบับร่างแล้ว")} />
+        {detail?.myProgress && (detail.role === "STUDENT" || detail.myProgress.GROUP.total + detail.myProgress.INDIVIDUAL.total > 0) && <EvaluationProgress progress={detail.myProgress} onOpen={busy ? undefined : (side) => void selectTab(side)} readOnly={!isOpen} />}
         {tab === "overview" && (
           <div className="two-col">
             <section className="card">
@@ -455,28 +466,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
                           {index + 1} / {evaluation.comparisons.length}
                         </span>
                       </div>
-                      <p className="muted">
-                        บันทึกแล้ว{" "}
-                        {
-                          evaluation.comparisons.filter(
-                            (p) => p.currentChoice !== null,
-                          ).length
-                        }{" "}
-                        คู่ · ส่งแล้ว{" "}
-                        {
-                          evaluation.comparisons.filter(
-                            (p) => p.submittedChoice !== null,
-                          ).length
-                        }{" "}
-                        คู่
-                      </p>
-                      <div className="progress-track">
-                        <div
-                          style={{
-                            width: `${(evaluation.comparisons.filter((p) => p.currentChoice !== null).length / evaluation.comparisons.length) * 100}%`,
-                          }}
-                        />
-                      </div>
+                      <p className="muted" data-testid="current-pair-status">คู่นี้: {pair.currentChoice === null ? "ยังไม่ได้ประเมิน" : pair.currentChoice === pair.submittedChoice ? "ส่งแล้ว" : pair.submittedChoice === null ? "บันทึกแล้ว ยังไม่ได้ส่ง" : "แก้ไขแล้ว ต้องส่งใหม่"}</p>
                       <div className="compare">
                         <div className="item">
                           <strong data-testid="left-item-name">

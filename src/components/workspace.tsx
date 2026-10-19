@@ -8,6 +8,8 @@ import { ErrorPopup } from "./error-popup";
 import { ArchiveDialog } from "./archive-dialog";
 import { NotificationPopup } from "./notification-popup";
 import { Pending, LinkPending } from "./pending";
+import { EvaluationProgress } from "./evaluation-progress";
+import type { MyProgress } from "../domain/evaluation-progress";
 
 interface Room {
   classroom: { id: string; name: string; slug: string; domains: string[]; archivedAt: string | null };
@@ -19,6 +21,7 @@ interface Work {
   name: string;
   status: string;
   closesAt: string;
+  myProgress: MyProgress;
 }
 interface Dashboard {
   user: { name: string; email: string };
@@ -87,6 +90,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
     data?.assignments.filter(
       (a) => classroomId ? a.classroomId === classroomId : data.classrooms.some((r) => r.classroom.id === a.classroomId),
     ) ?? [];
+  const pendingWork = work.filter((a) => a.status === "OPEN").flatMap((a) => Object.values(a.myProgress ?? {})).reduce((sum, p) => ({ total: sum.total + p.total, remaining: sum.remaining + p.remaining, outstanding: sum.outstanding + p.outstanding }), { total: 0, remaining: 0, outstanding: 0 });
   const createRoom = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -247,6 +251,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
         <h2 className="section-title">
           งานประเมิน <span className="muted">/ {work.length} งาน</span>
         </h2>
+        {!archived && pendingWork.total > 0 && <div className="card" data-testid="pending-evaluation-summary"><strong>งานที่เปิดรับ · เหลือประเมิน {pendingWork.remaining} คู่ · ยังขาดส่งคำตอบล่าสุด {pendingWork.outstanding} คู่</strong><p>รวม {pendingWork.total} คู่ ทุกเกณฑ์ · บันทึกคำตอบแล้วต้องกดส่งผลประเมินด้วย</p></div>}
         <div className="grid">
           {work.map((a) => (
             <Link
@@ -261,6 +266,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                 <span>↗</span>
               </div>
               <h3>{a.name}</h3>
+              {a.myProgress && (a.myProgress.GROUP.total + a.myProgress.INDIVIDUAL.total > 0) && <EvaluationProgress progress={a.myProgress} compact />}
               <LinkPending />
               <p className="muted">ปิดรับ {dateText(a.closesAt)}</p>
               <span className="muted">เปิดงานประเมิน →</span>

@@ -425,6 +425,16 @@ describe.sequential(
       const event = events.find((e) => e.action === "ARCHIVE_CLASSROOM");
       expect(event).toMatchObject({ actorId: owner.id, reason: "End of term", detail: { before: { archivedAt: null }, after: { archivedAt: archived.archivedAt.toISOString() } } });
     });
+    it("returns only the current evaluator's progress, including after archival", async () => {
+      const own = (await service.detail(ctx(student), assignmentId)).myProgress;
+      const comparisons = (await service.evaluations(ctx(student), assignmentId, "GROUP")).comparisons;
+      expect(own.GROUP.total).toBe(comparisons.length);
+      expect(own.GROUP.answered).toBeGreaterThan(0);
+      expect((await service.detail(ctx(otherStudent), assignmentId)).myProgress.GROUP.answered).toBe(0);
+      expect((await service.dashboard(ctx(student))).assignments.find((a) => a.id === assignmentId)?.myProgress).toEqual(own);
+      expect(JSON.stringify(own)).not.toContain(student.id);
+      await expect(service.detail(ctx(outsider), assignmentId)).rejects.toMatchObject({ status: 404 });
+    });
     it("rejects all later writes while preserving scoped read access", async () => {
       const group = (await service.roster(ctx(owner), classroomId)).groups[0];
       const mutations = [

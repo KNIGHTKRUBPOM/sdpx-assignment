@@ -30,6 +30,7 @@ import {
   staff,
 } from "./policy";
 import { FORMULA_VERSION, scoreItem, type ScopedComparison } from "./scoring";
+import { evaluationProgress, type MyProgress } from "./evaluation-progress";
 
 type Executor = Database | Transaction;
 const id = () => randomUUID();
@@ -124,6 +125,14 @@ export class PairEvalService {
     });
   }
 
+  private async myProgress(ctx: Context, assignmentIds: string[]) {
+    const rows = assignmentIds.length ? await this.db.select({ assignmentId: t.pairs.assignmentId, side: t.pairs.side, currentChoice: t.answers.draftChoice, submittedChoice: t.answers.submittedChoice })
+      .from(t.pairs).innerJoin(t.assignments, and(eq(t.assignments.id, t.pairs.assignmentId), eq(t.assignments.generation, t.pairs.generation)))
+      .leftJoin(t.answers, eq(t.answers.pairId, t.pairs.id))
+      .where(and(inArray(t.pairs.assignmentId, assignmentIds), eq(t.pairs.evaluatorId, ctx.user.id))) : [];
+    return Object.fromEntries(assignmentIds.map((id) => [id, Object.fromEntries((["GROUP", "INDIVIDUAL"] as const).map((side) => [side, evaluationProgress(rows.filter((r) => r.assignmentId === id && r.side === side))]))])) as Record<string, MyProgress>;
+  }
+
   async dashboard(ctx: Context) {
     const rooms = await this.db
       .select({ classroom: t.classrooms, role: t.members.role })
@@ -148,6 +157,7 @@ export class PairEvalService {
       .select()
       .from(t.users)
       .where(eq(t.users.id, ctx.user.id));
+    const progress = await this.myProgress(ctx, work.map((a) => a.id));
     return {
       user: ctx.user,
       noticeAccepted: !!user?.noticeAcceptedAt,
@@ -159,6 +169,7 @@ export class PairEvalService {
       assignments: work.map(({ snapshot: _snapshot, seed: _seed, ...a }) => ({
         ...a,
         status: effectiveStatus(a),
+        myProgress: progress[a.id],
       })),
     };
   }
@@ -650,6 +661,7 @@ export class PairEvalService {
       role: member.role,
       classroomName: classroom.name,
       classroomArchived: !!classroom.archivedAt,
+      myProgress: (await this.myProgress(ctx, [assignmentId]))[assignmentId],
     };
   }
 
