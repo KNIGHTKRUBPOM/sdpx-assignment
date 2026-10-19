@@ -263,4 +263,40 @@ charlie@uni.ac.th,Group Cygnus,6509,Charlie`;
     expect(failRes.status).toBe(401);
     expect(failRes.body.error.code).toBe('INVALID_CREDENTIALS');
   });
+
+  it('Step 16: Restricts CSV export to Teacher/Owner only and blocks Students with 403 (FR-AUTHZ-01, FR-EXPORT-01)', async () => {
+    // 1. Student attempted export -> 403 Forbidden
+    const studentRes = await request('POST', `/api/assignments/${assignmentId}/exports`, {
+      headers: { 'x-user-role': 'STUDENT' },
+      body: { report: 'group', includeIdentities: false },
+    });
+    expect(studentRes.status).toBe(403);
+    expect(studentRes.body.error.code).toBe('FORBIDDEN');
+
+    // 2. Teacher export -> 200 OK
+    const teacherRes = await request('POST', `/api/assignments/${assignmentId}/exports`, {
+      headers: { 'x-user-role': 'TEACHER' },
+      body: { report: 'group', includeIdentities: false },
+    });
+    expect(teacherRes.status).toBe(200);
+    expect(teacherRes.text).toContain('รหัสกลุ่ม');
+  });
+
+  it('Step 17: Verifies Teacher Overview endpoint accessibility and authorization (FR-REPORT-01, FR-AUTHZ-01)', async () => {
+    // 1. Student attempted access -> 403 Forbidden
+    const studentRes = await request('GET', `/api/assignments/${assignmentId}/overview`, {
+      headers: { 'x-user-role': 'STUDENT' },
+    });
+    expect(studentRes.status).toBe(403);
+
+    // 2. Teacher access -> 200 OK with groups and summary
+    const teacherRes = await request('GET', `/api/assignments/${assignmentId}/overview`, {
+      headers: { 'x-user-role': 'TEACHER' },
+    });
+    expect(teacherRes.status).toBe(200);
+    expect(teacherRes.body.assignmentId).toBe(assignmentId);
+    expect(teacherRes.body.groups).toBeDefined();
+    expect(teacherRes.body.groups.length).toBeGreaterThan(0);
+  });
 });
+

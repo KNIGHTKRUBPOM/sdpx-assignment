@@ -61,6 +61,15 @@ export function seedDemoData() {
       grpId: grpCosmos.id,
     },
     {
+      id: 'inst_teacher',
+      studentCode: 'teacher',
+      name: 'อาจารย์ผู้สอน (Teacher)',
+      email: 'teacher@kmitl.ac.th',
+      password: '0123456789',
+      role: 'TEACHER' as const,
+      grpId: null,
+    },
+    {
       id: 'inst_somchai',
       studentCode: 'somchai',
       name: 'อ.สมชาย (ผู้สอน)',

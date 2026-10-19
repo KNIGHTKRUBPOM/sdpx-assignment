@@ -2,7 +2,7 @@
  * Core domain types and interfaces for PairEval
  */
 
-export type Role = 'OWNER' | 'CO_TEACHER' | 'TA' | 'STUDENT';
+export type Role = 'OWNER' | 'CO_TEACHER' | 'TA' | 'STUDENT' | 'TEACHER';
 
 export type AssignmentStatus =
   | 'DRAFT'
