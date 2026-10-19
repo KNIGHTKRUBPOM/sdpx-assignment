@@ -858,18 +858,20 @@ app.get('/', (req: Request, res: Response) => {
       --border: #e2e8f0;
       --text: #0f172a;
       --text-muted: #64748b;
+      --success: #16a34a;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: var(--bg); color: var(--text); padding: 16px; min-width: 320px; }
     .container { max-width: 640px; margin: 0 auto; }
-    header { margin-bottom: 24px; text-align: center; }
+    header { margin-bottom: 20px; text-align: center; }
     h1 { font-size: 1.5rem; font-weight: 700; color: #1e293b; }
     p.subtitle { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
-    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .nav-bar { display: flex; justify-content: space-between; align-items: center; background: #e2e8f0; border-radius: 8px; padding: 6px 12px; margin-bottom: 16px; font-size: 0.85rem; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     .progress-bar-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 600; font-size: 0.95rem; }
     .items-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; text-align: center; }
     .item-box { background: #f1f5f9; padding: 14px; border-radius: 8px; border: 1px solid var(--border); }
-    .item-box h3 { font-size: 1.1rem; margin-bottom: 6px; }
+    .item-box h3 { font-size: 1.05rem; margin-bottom: 6px; }
     .item-box a { color: var(--primary); text-decoration: none; font-size: 0.85rem; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
     .scale-legend { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; }
     .radio-group { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 16px; }
@@ -879,8 +881,13 @@ app.get('/', (req: Request, res: Response) => {
     .radio-option input[type="radio"]:checked + .radio-btn { background: #eff6ff; border-color: var(--primary); color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
     .label-guide { font-size: 0.75rem; color: var(--text-muted); margin-top: 12px; line-height: 1.4; border-top: 1px dashed var(--border); padding-top: 10px; }
     .status-alert { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
+    .btn-row { display: flex; gap: 10px; margin-bottom: 12px; }
+    .action-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+    .action-btn:hover { background: #f1f5f9; }
     .submit-btn { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     .submit-btn:hover { background: var(--primary-hover); }
+    .result-panel { display: none; background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px; padding: 16px; margin-top: 16px; }
+    .result-panel h4 { color: var(--success); margin-bottom: 8px; }
   </style>
 </head>
 <body>
@@ -890,20 +897,25 @@ app.get('/', (req: Request, res: Response) => {
       <p class="subtitle">ระบบประเมินผลนักศึกษาแบบ Pairwise Comparison</p>
     </header>
 
+    <div class="nav-bar">
+      <span>ผู้ประเมิน: <strong id="evaluator-name">นก (std_nok)</strong></span>
+      <span>บทบาท: <strong>STUDENT</strong></span>
+    </div>
+
     <div class="card" data-testid="evaluation-card">
       <div class="progress-bar-container">
-        <span>เกณฑ์: User Experience (UX)</span>
-        <span data-testid="progress-indicator">3 / 5 ✓</span>
+        <span id="criterion-name">เกณฑ์: User Experience (UX)</span>
+        <span data-testid="progress-indicator" id="progress-indicator">1 / 2 ✓</span>
       </div>
 
       <div class="items-comparison">
         <div class="item-box">
-          <h3 data-testid="left-item-name">กลุ่ม Aurora</h3>
-          <a href="#" target="_blank" data-testid="left-artifact-link">ดูผลงาน ↗</a>
+          <h3 data-testid="left-item-name" id="left-item-name">กลุ่ม Aurora</h3>
+          <a href="https://github.com/CE-SDPX" target="_blank" data-testid="left-artifact-link">ดูผลงาน ↗</a>
         </div>
         <div class="item-box">
-          <h3 data-testid="right-item-name">กลุ่ม Borealis</h3>
-          <a href="#" target="_blank" data-testid="right-artifact-link">ดูผลงาน ↗</a>
+          <h3 data-testid="right-item-name" id="right-item-name">กลุ่ม Borealis</h3>
+          <a href="https://github.com/CE-SDPX" target="_blank" data-testid="right-artifact-link">ดูผลงาน ↗</a>
         </div>
       </div>
 
@@ -946,14 +958,156 @@ app.get('/', (req: Request, res: Response) => {
       </div>
     </div>
 
-    <div class="status-alert" aria-live="polite" data-testid="autosave-status">
-      ✓ บันทึกฉบับร่างแล้ว เมื่อ 15:05
+    <div class="status-alert" aria-live="polite" data-testid="autosave-status" id="autosave-status">
+      ✓ พร้อมทำการประเมิน
     </div>
 
-    <button type="button" class="submit-btn" data-testid="submit-evaluations-btn">
+    <div class="btn-row">
+      <button type="button" class="action-btn" id="prev-btn">← ก่อนหน้า</button>
+      <button type="button" class="action-btn" id="next-btn">ถัดไป →</button>
+    </div>
+
+    <button type="button" class="submit-btn" data-testid="submit-evaluations-btn" id="submit-btn">
       ส่งผลการประเมิน (Submit)
     </button>
+
+    <div class="result-panel" id="result-panel">
+      <h4>🎉 ส่งผลการประเมินสำเร็จ!</h4>
+      <p id="result-desc">ข้อมูลทั้งหมดถูกบันทึกเข้าระบบเรียบร้อยแล้ว</p>
+      <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <button type="button" class="action-btn" id="view-score-btn" style="background:#16a34a; color:white; border:none;">ดูคะแนนของฉัน (My Score)</button>
+        <button type="button" class="action-btn" id="export-csv-btn">ดาวน์โหลดรายงาน CSV</button>
+      </div>
+      <div id="score-details" style="margin-top:12px; font-size:0.9rem;"></div>
+    </div>
   </div>
+
+  <script>
+    let pairs = [];
+    let currentIndex = 0;
+    const assignmentId = 'asg_demo';
+    const userId = 'std_nok';
+
+    let criteriaMap = {};
+
+    async function loadData() {
+      try {
+        const res = await fetch('/api/assignments/' + assignmentId + '/my-evaluations?side=GROUP', {
+          headers: { 'x-user-id': userId, 'x-user-role': 'STUDENT' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          criteriaMap = {};
+          (data.criteria || []).forEach(c => { criteriaMap[c.id] = c.name; });
+          pairs = (data.comparisons || []).map(c => ({
+            ...c,
+            criterionName: criteriaMap[c.criterionId] || 'User Experience (UX)'
+          }));
+          renderPair();
+        }
+      } catch (err) {
+        console.error('Error loading evaluations:', err);
+      }
+    }
+
+    function renderPair() {
+      if (!pairs || pairs.length === 0) return;
+      const cur = pairs[currentIndex];
+      document.getElementById('progress-indicator').textContent = (currentIndex + 1) + ' / ' + pairs.length + ' ✓';
+      document.getElementById('criterion-name').textContent = 'เกณฑ์: ' + (cur.criterionName || 'การประเมินกลุ่ม');
+      document.getElementById('left-item-name').textContent = cur.leftItem ? cur.leftItem.name : 'กลุ่ม Aurora';
+      document.getElementById('right-item-name').textContent = cur.rightItem ? cur.rightItem.name : 'กลุ่ม Borealis';
+      
+      const radios = document.querySelectorAll('input[name="pair_eval"]');
+      radios.forEach(r => {
+        r.checked = (cur.currentChoice && String(cur.currentChoice) === r.value);
+      });
+    }
+
+    let debounceTimer = null;
+    document.querySelectorAll('input[name="pair_eval"]').forEach(r => {
+      r.addEventListener('change', (e) => {
+        const val = parseInt(e.target.value, 10);
+        if (pairs[currentIndex]) {
+          pairs[currentIndex].currentChoice = val;
+          const statusEl = document.getElementById('autosave-status');
+          statusEl.textContent = '⏳ กำลังบันทึกฉบับร่าง...';
+          
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(async () => {
+            try {
+              const pairId = pairs[currentIndex].pairAssignmentId;
+              const res = await fetch('/api/comparisons/' + pairId, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+                body: JSON.stringify({ choice: val, timeOnTaskMs: 2500 })
+              });
+              if (res.ok) {
+                const now = new Date();
+                statusEl.textContent = '✓ บันทึกฉบับร่างแล้ว เมื่อ ' + now.toLocaleTimeString('th-TH');
+              }
+            } catch (err) {
+              statusEl.textContent = '⚠️ บันทึกไม่สำเร็จ';
+            }
+          }, 300);
+        }
+      });
+    });
+
+    document.getElementById('prev-btn').addEventListener('click', () => {
+      if (currentIndex > 0) { currentIndex--; renderPair(); }
+    });
+    document.getElementById('next-btn').addEventListener('click', () => {
+      if (currentIndex < pairs.length - 1) { currentIndex++; renderPair(); }
+    });
+
+    document.getElementById('submit-btn').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/assignments/' + assignmentId + '/submissions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': userId,
+            'Idempotency-Key': 'sub_' + Date.now()
+          },
+          body: JSON.stringify({ side: 'GROUP' })
+        });
+        if (res.ok) {
+          const result = await res.json();
+          document.getElementById('result-panel').style.display = 'block';
+          document.getElementById('result-desc').textContent = 'ส่งผลการประเมินจำนวน ' + (result.submittedCount || 2) + ' ข้อเรียบร้อยแล้ว';
+          document.getElementById('submit-btn').style.display = 'none';
+        }
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+      }
+    });
+
+    document.getElementById('view-score-btn').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/assignments/' + assignmentId + '/my-score', {
+          headers: { 'x-user-id': userId }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const detailsEl = document.getElementById('score-details');
+          detailsEl.innerHTML = '<strong>สรุปคะแนนของคุณ:</strong><br>' +
+            '• คะแนนกลุ่ม (Group Score): <strong>' + (data.groupScore ? data.groupScore.toFixed(3) : '12.80') + ' / 15</strong><br>' +
+            '• อัตราการมีส่วนร่วม (Participation p): <strong>' + ((data.participationRatio || 1.0) * 100).toFixed(0) + '%</strong><br>' +
+            '• ตัวคูณ M: <strong>' + (data.participationMultiplier || 1.0) + '</strong><br>' +
+            '• สถานะ: <em>' + (data.isFinal ? 'คะแนนเป็นทางการ' : 'คะแนนชั่วคราวระหว่างทาง') + '</em>';
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    });
+
+    document.getElementById('export-csv-btn').addEventListener('click', async () => {
+      window.open('/api/assignments/' + assignmentId + '/audit', '_blank');
+    });
+
+    loadData();
+  </script>
 </body>
 </html>`);
 });
