@@ -51,7 +51,7 @@ export interface StudentSelfScoreView {
   individualScore?: number;
   participationRatio: number;
   multiplier: number;
-  finalPersonalScore: number;
+  finalPersonalScore?: number;
   statusMessage?: string;
   label: string; // e.g. "ชั่วคราว — อาจเปลี่ยนแปลงได้" (FR-SCORE-07)
 }
@@ -85,7 +85,7 @@ export function buildStudentSelfScoreView(params: {
     multiplier: Number(params.personalResult.multiplier.toFixed(3)),
     finalPersonalScore: meetsAnonymity
       ? Number(params.personalResult.finalPersonalScore.toFixed(2))
-      : Number(params.groupSummary.totalComponentScore.toFixed(2)),
+      : undefined,
     statusMessage: meetsAnonymity
       ? undefined
       : 'ยังมีข้อมูลการประเมินรายบุคคลไม่เพียงพอตามเกณฑ์ความเป็นส่วนตัว (k-anonymity)',
@@ -100,12 +100,12 @@ export function exportToCsvString(headers: string[], rows: (string | number)[][]
   const bom = '\uFEFF';
   const csvLines: string[] = [];
 
-  csvLines.push(headers.map((h) => `"${sanitizeCsvCell(h)}"`).join(','));
+  csvLines.push(headers.map((h) => `"${sanitizeCsvCell(h).replace(/"/g, '""')}"`).join(','));
 
   for (const row of rows) {
     const formatted = row.map((cell) => {
       const str = String(cell);
-      return `"${sanitizeCsvCell(str)}"`;
+      return `"${sanitizeCsvCell(str).replace(/"/g, '""')}"`;
     });
     csvLines.push(formatted.join(','));
   }

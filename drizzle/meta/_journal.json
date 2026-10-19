@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791994671571,
+      "tag": "0000_massive_magdalene",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792038515761,
+      "tag": "0001_pin_audit_function_search_path",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792421279408,
+      "tag": "0002_archive_classrooms",
+      "breakpoints": true
+    }
+  ]
+}

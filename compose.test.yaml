@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: paireval_test
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a temporary password}
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d paireval_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  test:
+    build:
+      context: .
+      target: dependencies
+    working_dir: /app
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+      - ./scripts:/app/scripts:ro
+      - ./drizzle:/app/drizzle:ro
+      - ./vitest.config.ts:/app/vitest.config.ts:ro
+      - ./vitest.integration.config.ts:/app/vitest.integration.config.ts:ro
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/paireval_test
+      TEST_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/paireval_test
+    command: ["sh", "-c", "npm test && npm run db:migrate && npm run test:integration"]
+    depends_on:
+      db:
+        condition: service_healthy

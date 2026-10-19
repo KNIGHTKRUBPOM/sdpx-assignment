@@ -74,66 +74,6 @@ function getAuthUser(req: Request) {
 }
 
 // ==========================================
-// 0. AUTH ENDPOINTS (Student & Instructor Login)
-// ==========================================
-
-app.post('/api/auth/login', (req: Request, res: Response) => {
-  const { username, password } = req.body || {};
-  if (!username) {
-    return sendError(res, 400, 'MISSING_FIELD', 'กรุณาระบุรหัสนักศึกษา (Username)');
-  }
-
-  const rawUser = String(username).trim();
-  const lowerUser = rawUser.toLowerCase();
-
-  // Find user by studentCode, id, or emailNormalized
-  const user = Array.from(memoryStore.users.values()).find(
-    (u) =>
-      (u.studentCode && u.studentCode.toLowerCase() === lowerUser) ||
-      u.id.toLowerCase() === lowerUser ||
-      u.id.toLowerCase() === `std_${lowerUser}` ||
-      u.emailNormalized === lowerUser ||
-      u.emailNormalized.startsWith(lowerUser + '@'),
-  );
-
-  if (!user) {
-    return sendError(res, 401, 'INVALID_CREDENTIALS', 'ไม่พบรหัสนักศึกษานี้ในระบบ');
-  }
-
-  const expectedPassword = user.password || '0123456789';
-  if (password !== expectedPassword) {
-    return sendError(
-      res,
-      401,
-      'INVALID_CREDENTIALS',
-      'รหัสผ่านไม่ถูกต้อง (รหัสผ่านเริ่มต้นคือ 0123456789)',
-    );
-  }
-
-  // Find membership & group
-  const member = Array.from(memoryStore.classroomMembers.values()).find(
-    (m) => m.userId === user.id,
-  );
-  let groupName = 'ไม่มีกลุ่ม';
-  if (member?.groupId) {
-    const grp = memoryStore.groups.get(member.groupId);
-    if (grp) groupName = grp.name;
-  }
-
-  res.json({
-    user: {
-      id: user.id,
-      studentCode: user.studentCode || user.id.replace('std_', ''),
-      displayName: user.displayName,
-      email: user.emailRaw,
-      role: member?.role || 'STUDENT',
-      groupId: member?.groupId || null,
-      groupName,
-    },
-  });
-});
-
-// ==========================================
 // 1. CLASSROOM ENDPOINTS
 // ==========================================
 
@@ -237,8 +177,6 @@ app.post(
         if (!userEntity) {
           userEntity = {
             id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            studentCode: row.studentId,
-            password: '0123456789',
             emailRaw: row.email,
             emailNormalized: row.emailNormalized,
             displayName: row.displayName || row.emailNormalized.split('@')[0],
@@ -597,7 +535,6 @@ app.get('/api/assignments/:id/my-evaluations', (req: Request, res: Response) => 
         name: rightName,
       },
       currentChoice: existing ? existing.choice : null,
-      status: existing ? existing.status : 'PENDING',
     };
   });
 
@@ -858,27 +795,10 @@ app.post('/api/assignments/:id/exports', (req: Request, res: Response) => {
   const { report, includeIdentities, reason } = req.body;
   const user = getAuthUser(req);
 
-  // FR-AUTHZ-01, FR-AUTHZ-02: Only Teacher/Instructor/Owner can export reports
-  const isTeacher =
-    user.role === 'OWNER' ||
-    user.role === 'CO_TEACHER' ||
-    user.role === 'TEACHER' ||
-    user.role === 'INSTRUCTOR' ||
-    user.role === 'TA';
-
-  if (!isTeacher) {
-    return sendError(
-      res,
-      403,
-      'FORBIDDEN',
-      'สิทธิ์ไม่เพียงพอ: เฉพาะอาจารย์ผู้สอน (Teacher) เท่านั้นที่สามารถดาวน์โหลดรายงาน CSV ได้',
-    );
-  }
-
-  // FR-EXPORT-04: If export has real identities, must be Owner/Teacher and audit logged
+  // FR-EXPORT-04: If export has real identities, must be Owner and audit logged
   if (includeIdentities) {
-    if (user.role !== 'OWNER' && user.role !== 'TEACHER') {
-      return sendError(res, 403, 'FORBIDDEN', 'Only classroom Owner or Teacher can export real identities.');
+    if (user.role !== 'OWNER') {
+      return sendError(res, 403, 'FORBIDDEN', 'Only classroom Owner can export real identities.');
     }
     memoryStore.logAudit({
       classroomId: assignment.classroomId,
@@ -887,104 +807,23 @@ app.post('/api/assignments/:id/exports', (req: Request, res: Response) => {
       action: 'EXPORT_IDENTITIES',
       resourceType: 'EXPORT',
       resourceId: assignment.id,
-      reason: reason || 'Instructor exported unmasked identities',
+      reason: reason || 'Owner exported unmasked identities',
     });
   }
 
-  let headers: string[] = [];
-  let rows: (string | number)[][] = [];
-
-  const reportType = report || 'group';
-
-  if (reportType === 'raw-comparisons' || reportType === 'raw') {
-    headers = ['Evaluator_ID', 'Pair_ID', 'Choice', 'Status'];
-    rows = Array.from(memoryStore.comparisons.values()).map((c) => {
-      const evalId = includeIdentities
-        ? c.evaluatorUserId
-        : generateEvaluatorPseudonym(c.evaluatorUserId, assignment.id);
-      return [evalId, c.pairAssignmentId, c.choice, c.status];
-    });
-  } else {
-    // Default: Group Summary Report (FR-REPORT-01, FR-EXPORT-01)
-    headers = [
-      'รหัสกลุ่ม (Group_ID)',
-      'ชื่อกลุ่ม (Group_Name)',
-      'เกณฑ์การประเมิน (Criterion)',
-      'ดัชนีคุณภาพ q (Quality_Index)',
-      'จำนวนครั้งที่ประเมิน (Comparison_Count)',
-      'คะแนนเกณฑ์นี้ (Criterion_Score)',
-      'คะแนนกลุ่มรวม (Total_Group_Score)',
-      'สถานะ (Status)',
-    ];
-
-    const submittedCmps: SubmittedComparison[] = Array.from(memoryStore.comparisons.values())
-      .filter((c) => c.status === 'SUBMITTED')
-      .map((c) => {
-        const pa = memoryStore.pairAssignments.get(c.pairAssignmentId)!;
-        const rightId = pa.displayLeftItemId === pa.itemAId ? pa.itemBId : pa.itemAId;
-        return {
-          id: c.id,
-          pairAssignmentId: c.pairAssignmentId,
-          evaluatorUserId: c.evaluatorUserId,
-          isInstructor: false,
-          itemLeftId: pa.displayLeftItemId,
-          itemRightId: rightId,
-          choice: c.choice,
-          status: 'SUBMITTED',
-          timeOnTaskMs: c.timeOnTaskMs,
-        };
-      });
-
-    const allCriteria = Array.from(memoryStore.criteria.values());
-    const classroomGroups = Array.from(memoryStore.groups.values()).filter(
-      (g) => g.classroomId === assignment.classroomId,
-    );
-
-    for (const grp of classroomGroups) {
-      const scoreSummary = computeItemScores(
-        grp.id,
-        'GROUP',
-        allCriteria,
-        submittedCmps,
-        {
-          floor: assignment.scoreFloor,
-          ceiling: assignment.scoreCeiling,
-          instructorWeight: assignment.instructorWeight,
-          minComparisons: assignment.minComparisons,
-          completionThreshold: assignment.completionThreshold,
-          groupMaxScore: assignment.groupMaxScore,
-          individualMaxScore: assignment.individualMaxScore,
-        },
-      );
-
-      const totalScoreStr = `${scoreSummary.totalComponentScore.toFixed(3)} / ${assignment.groupMaxScore.toFixed(3)}`;
-
-      for (const crit of allCriteria.filter((c) => c.side === 'GROUP')) {
-        const cs = scoreSummary.criterionScores[crit.id];
-        const qVal = cs ? cs.qualityIndex.toFixed(3) : '0.000';
-        const cmpCount = cs ? cs.comparisonCount : 0;
-        const critScore = cs ? cs.weightedScore.toFixed(3) : '0.000';
-        const flagsStr = (scoreSummary.flags || []).join('; ') || 'NORMAL';
-
-        rows.push([
-          grp.id,
-          grp.name,
-          crit.name,
-          qVal,
-          cmpCount,
-          critScore,
-          totalScoreStr,
-          flagsStr,
-        ]);
-      }
-    }
-  }
+  const headers = ['Evaluator_ID', 'Pair_ID', 'Choice', 'Status'];
+  const rows = Array.from(memoryStore.comparisons.values()).map((c) => {
+    const evalId = includeIdentities
+      ? c.evaluatorUserId
+      : generateEvaluatorPseudonym(c.evaluatorUserId, assignment.id);
+    return [evalId, c.pairAssignmentId, c.choice, c.status];
+  });
 
   const csv = exportToCsvString(headers, rows);
   const filename = formatExportFilename(
     classroom?.slug || 'class',
     assignment.slug,
-    reportType,
+    report || 'raw',
   );
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -997,84 +836,6 @@ app.get('/api/assignments/:id/audit', (req: Request, res: Response) => {
   const assignmentId = getParam(req, 'id');
   const list = memoryStore.auditEvents.filter((a) => a.assignmentId === assignmentId);
   res.json(list);
-});
-
-// Teacher Assignment Overview Endpoint (FR-REPORT-01, FR-AUTHZ-01)
-app.get('/api/assignments/:id/overview', (req: Request, res: Response) => {
-  const assignmentId = getParam(req, 'id');
-  const assignment = memoryStore.assignments.get(assignmentId);
-  if (!assignment) {
-    return sendError(res, 404, 'NOT_FOUND', 'Assignment not found.');
-  }
-
-  const user = getAuthUser(req);
-  const isTeacher =
-    user.role === 'OWNER' ||
-    user.role === 'CO_TEACHER' ||
-    user.role === 'TEACHER' ||
-    user.role === 'INSTRUCTOR' ||
-    user.role === 'TA';
-
-  if (!isTeacher) {
-    return sendError(res, 403, 'FORBIDDEN', 'Teacher role required.');
-  }
-
-  const allCriteria = Array.from(memoryStore.criteria.values());
-  const classroomGroups = Array.from(memoryStore.groups.values()).filter(
-    (g) => g.classroomId === assignment.classroomId,
-  );
-
-  const submittedCmps: SubmittedComparison[] = Array.from(memoryStore.comparisons.values())
-    .filter((c) => c.status === 'SUBMITTED')
-    .map((c) => {
-      const pa = memoryStore.pairAssignments.get(c.pairAssignmentId)!;
-      const rightId = pa.displayLeftItemId === pa.itemAId ? pa.itemBId : pa.itemAId;
-      return {
-        id: c.id,
-        pairAssignmentId: c.pairAssignmentId,
-        evaluatorUserId: c.evaluatorUserId,
-        isInstructor: false,
-        itemLeftId: pa.displayLeftItemId,
-        itemRightId: rightId,
-        choice: c.choice,
-        status: 'SUBMITTED',
-        timeOnTaskMs: c.timeOnTaskMs,
-      };
-    });
-
-  const groups = classroomGroups.map((grp) => {
-    const scoreSummary = computeItemScores(
-      grp.id,
-      'GROUP',
-      allCriteria,
-      submittedCmps,
-      {
-        floor: assignment.scoreFloor,
-        ceiling: assignment.scoreCeiling,
-        instructorWeight: assignment.instructorWeight,
-        minComparisons: assignment.minComparisons,
-        completionThreshold: assignment.completionThreshold,
-        groupMaxScore: assignment.groupMaxScore,
-        individualMaxScore: assignment.individualMaxScore,
-      },
-    );
-
-    return {
-      id: grp.id,
-      name: grp.name,
-      totalScore: Number(scoreSummary.totalComponentScore.toFixed(3)),
-      maxScore: assignment.groupMaxScore,
-      flags: scoreSummary.flags,
-    };
-  });
-
-  res.json({
-    assignmentId: assignment.id,
-    assignmentName: assignment.name,
-    status: assignment.status,
-    totalComparisons: submittedCmps.length,
-    groups,
-  });
 });
 
 // ==========================================
@@ -1097,20 +858,18 @@ app.get('/', (req: Request, res: Response) => {
       --border: #e2e8f0;
       --text: #0f172a;
       --text-muted: #64748b;
-      --success: #16a34a;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: var(--bg); color: var(--text); padding: 16px; min-width: 320px; }
     .container { max-width: 640px; margin: 0 auto; }
-    header { margin-bottom: 20px; text-align: center; }
+    header { margin-bottom: 24px; text-align: center; }
     h1 { font-size: 1.5rem; font-weight: 700; color: #1e293b; }
     p.subtitle { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
-    .nav-bar { display: flex; justify-content: space-between; align-items: center; background: #e2e8f0; border-radius: 8px; padding: 6px 12px; margin-bottom: 16px; font-size: 0.85rem; }
-    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     .progress-bar-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 600; font-size: 0.95rem; }
     .items-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; text-align: center; }
     .item-box { background: #f1f5f9; padding: 14px; border-radius: 8px; border: 1px solid var(--border); }
-    .item-box h3 { font-size: 1.05rem; margin-bottom: 6px; }
+    .item-box h3 { font-size: 1.1rem; margin-bottom: 6px; }
     .item-box a { color: var(--primary); text-decoration: none; font-size: 0.85rem; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
     .scale-legend { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; }
     .radio-group { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 16px; }
@@ -1118,79 +877,10 @@ app.get('/', (req: Request, res: Response) => {
     .radio-option input[type="radio"] { display: none; }
     .radio-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 48px; border: 2px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; font-weight: 700; }
     .radio-option input[type="radio"]:checked + .radio-btn { background: #eff6ff; border-color: var(--primary); color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
-    .radio-option input[type="radio"]:disabled + .radio-btn { opacity: 0.55; cursor: not-allowed; background: #e2e8f0; border-color: #cbd5e1; color: #64748b; }
     .label-guide { font-size: 0.75rem; color: var(--text-muted); margin-top: 12px; line-height: 1.4; border-top: 1px dashed var(--border); padding-top: 10px; }
     .status-alert { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
-    .btn-row { display: flex; gap: 10px; margin-bottom: 12px; }
-    .action-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
-    .action-btn:hover { background: #f1f5f9; }
-    .user-profile-bar {
-      background: #ffffff;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px 16px;
-      margin-bottom: 16px;
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-    }
-    .top-nav-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 8px 16px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      border-radius: 8px;
-      white-space: nowrap;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      line-height: 1.2;
-    }
-    .top-nav-btn:hover {
-      filter: brightness(0.95);
-      transform: translateY(-1px);
-    }
-    .quick-login-card {
-      margin-top: 24px;
-      padding-top: 18px;
-      border-top: 1px dashed #cbd5e1;
-    }
-    .quick-login-btn {
-      width: 100%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: 1px solid #cbd5e1;
-      background: white;
-      cursor: pointer;
-      font-size: 0.84rem;
-      transition: all 0.15s ease;
-      text-align: left;
-    }
-    .quick-login-btn:hover {
-      border-color: var(--primary);
-      background: #f8fafc;
-    }
-    .quick-login-btn.teacher-item {
-      background: #f0fdf4;
-      border-color: #86efac;
-      color: #166534;
-    }
-    .quick-login-btn.teacher-item:hover {
-      background: #dcfce7;
-      border-color: #4ade80;
-    }
     .submit-btn { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     .submit-btn:hover { background: var(--primary-hover); }
-    .submit-btn:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
-    .result-panel { display: none; background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px; padding: 16px; margin-top: 16px; }
-    .result-panel h4 { color: var(--success); margin-bottom: 8px; }
   </style>
 </head>
 <body>
@@ -1200,101 +890,26 @@ app.get('/', (req: Request, res: Response) => {
       <p class="subtitle">ระบบประเมินผลนักศึกษาแบบ Pairwise Comparison</p>
     </header>
 
-    <!-- 1. LOGIN VIEW -->
-    <div class="card" id="login-view" style="max-width: 440px; margin: 30px auto; padding: 24px;">
-      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; text-align: center;">เข้าสู่ระบบ PairEval</h2>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; text-align: center;">กรุณาใส่รหัสนักศึกษาและรหัสผ่านเพื่อเริ่มทำการประเมิน</p>
-      
-      <form id="login-form">
-        <div style="margin-bottom: 14px;">
-          <label for="login-username" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">รหัสนักศึกษา (Username):</label>
-          <input type="text" id="login-username" data-testid="login-username-input" placeholder="เช่น 67015155, 67015105, 67015167" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; box-sizing: border-box;" required>
-        </div>
-
-        <div style="margin-bottom: 18px;">
-          <label for="login-password" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">รหัสผ่าน (Password):</label>
-          <input type="password" id="login-password" data-testid="login-password-input" placeholder="0123456789" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; box-sizing: border-box;" required>
-        </div>
-
-        <div id="login-error" data-testid="login-error-msg" style="display: none; background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 16px;"></div>
-
-        <button type="submit" class="submit-btn" id="login-submit-btn" data-testid="login-submit-btn" style="width: 100%; padding: 12px; font-size: 0.95rem;">เข้าสู่ระบบ (Login)</button>
-      </form>
-
-      <div class="quick-login-card">
-        <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
-          คลิกเลือกบัญชีเพื่อเติมรหัสอัตโนมัติ:
-        </div>
-        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
-          (เมื่อกดเลือกแล้ว ข้อมูลจะถูกเติมลงในกล่องข้อความด้านบน จากนั้นให้กดปุ่ม "เข้าสู่ระบบ (Login)" ด้วยตนเอง)
-        </p>
-
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          <button type="button" class="quick-login-btn" data-username="67015155">
-            <span><strong>67015155</strong> — ไนท์ (กลุ่ม Aurora)</span>
-            <span style="font-size: 0.75rem; color: var(--primary); background: #eff6ff; padding: 2px 8px; border-radius: 4px; font-weight: 600;">คลิกเลือก</span>
-          </button>
-          <button type="button" class="quick-login-btn" data-username="67015105">
-            <span><strong>67015105</strong> — นักศึกษา (กลุ่ม Borealis)</span>
-            <span style="font-size: 0.75rem; color: var(--primary); background: #eff6ff; padding: 2px 8px; border-radius: 4px; font-weight: 600;">คลิกเลือก</span>
-          </button>
-          <button type="button" class="quick-login-btn" data-username="67015167">
-            <span><strong>67015167</strong> — นักศึกษา (กลุ่ม Cosmos)</span>
-            <span style="font-size: 0.75rem; color: var(--primary); background: #eff6ff; padding: 2px 8px; border-radius: 4px; font-weight: 600;">คลิกเลือก</span>
-          </button>
-          <button type="button" class="quick-login-btn teacher-item" data-username="teacher">
-            <span><strong>teacher</strong> — อาจารย์ผู้สอน (สิทธิ์ดาวน์โหลด CSV)</span>
-            <span style="font-size: 0.75rem; color: #166534; background: #dcfce7; padding: 2px 8px; border-radius: 4px; font-weight: 600;">คลิกเลือก</span>
-          </button>
-        </div>
-
-        <div id="quick-login-hint" style="display: none; margin-top: 10px; padding: 8px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.8rem; color: #1d4ed8; text-align: center;"></div>
-      </div>
-    </div>
-
-    <!-- 2. EVALUATION VIEW -->
-    <div id="eval-view" style="display: none;">
-      <div class="user-profile-bar">
-        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85rem;">
-          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
-            <span style="color: var(--text-muted);">ผู้ประเมิน:</span>
-            <strong id="evaluator-name" style="color: #0f172a;">-</strong>
-          </div>
-          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; color: #1e40af;">
-            <span style="opacity: 0.85;">กลุ่มของคุณ:</span>
-            <strong id="evaluator-group-name">-</strong>
-          </div>
-          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; color: #334155; font-weight: 600;">
-            <span>บทบาท:</span>
-            <span style="background: #0284c7; color: white; padding: 1px 8px; border-radius: 4px; font-size: 0.75rem; letter-spacing: 0.5px;">STUDENT</span>
-          </div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-          <button type="button" class="top-nav-btn" id="revote-btn" style="display: none; background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd;" title="ปลดล็อกเพื่อให้ผู้ใช้นี้แก้ไขคะแนนใหม่ได้ในโหมดทดสอบ">ประเมินใหม่ (Demo Re-vote)</button>
-          <button type="button" class="top-nav-btn" id="logout-btn" data-testid="logout-btn" style="background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3;">ออกจากระบบ (Logout)</button>
-        </div>
-      </div>
-
     <div class="card" data-testid="evaluation-card">
       <div class="progress-bar-container">
-        <span id="criterion-name">เกณฑ์: User Experience (UX)</span>
-        <span data-testid="progress-indicator" id="progress-indicator">ประเมินแล้ว 0 / 5 คู่</span>
+        <span>เกณฑ์: User Experience (UX)</span>
+        <span data-testid="progress-indicator">3 / 5 ✓</span>
       </div>
 
       <div class="items-comparison">
         <div class="item-box">
-          <h3 data-testid="left-item-name" id="left-item-name">กลุ่ม Borealis</h3>
-          <a href="https://github.com/CE-SDPX" target="_blank" data-testid="left-artifact-link">ดูผลงาน</a>
+          <h3 data-testid="left-item-name">กลุ่ม Aurora</h3>
+          <a href="#" target="_blank" data-testid="left-artifact-link">ดูผลงาน ↗</a>
         </div>
         <div class="item-box">
-          <h3 data-testid="right-item-name" id="right-item-name">กลุ่ม Cosmos</h3>
-          <a href="https://github.com/CE-SDPX" target="_blank" data-testid="right-artifact-link">ดูผลงาน</a>
+          <h3 data-testid="right-item-name">กลุ่ม Borealis</h3>
+          <a href="#" target="_blank" data-testid="right-artifact-link">ดูผลงาน ↗</a>
         </div>
       </div>
 
       <div class="scale-legend">
-        <span>[ซ้ายดีกว่ามาก]</span>
-        <span>[ขวาดีกว่ามาก]</span>
+        <span>← ซ้ายดีกว่ามาก</span>
+        <span>ขวาดีกว่ามาก →</span>
       </div>
 
       <div role="radiogroup" aria-label="เลือกระดับความต่างระหว่างผลงาน" class="radio-group" data-testid="choice-radio-group">
@@ -1326,518 +941,19 @@ app.get('/', (req: Request, res: Response) => {
 
       <div class="label-guide">
         <strong>คำอธิบายสเกล:</strong><br>
-        1 = ซ้ายดีกว่ามาก | 2 = ซ้ายดีกว่า | 3 = ซ้ายดีกว่าเล็กน้อย<br>
-        4 = ขวาดีกว่าเล็กน้อย | 5 = ขวาดีกว่า | 6 = ขวาดีกว่ามาก
+        1 = ซ้ายดีกว่ามาก · 2 = ซ้ายดีกว่า · 3 = ซ้ายดีกว่าเล็กน้อย<br>
+        4 = ขวาดีกว่าเล็กน้อย · 5 = ขวาดีกว่า · 6 = ขวาดีกว่ามาก
       </div>
     </div>
 
-    <div class="status-alert" aria-live="polite" data-testid="autosave-status" id="autosave-status">
-      สถานะ: ยังไม่ได้เลือกคำตอบสำหรับคู่นี้ (กรุณาเลือก 1-6)
+    <div class="status-alert" aria-live="polite" data-testid="autosave-status">
+      ✓ บันทึกฉบับร่างแล้ว เมื่อ 15:05
     </div>
 
-    <div class="btn-row">
-      <button type="button" class="action-btn" id="prev-btn">ก่อนหน้า</button>
-      <button type="button" class="action-btn" id="next-btn">ถัดไป</button>
-    </div>
-
-    <button type="button" class="submit-btn" data-testid="submit-evaluations-btn" id="submit-btn" disabled>
-      ส่งผลการประเมิน (ยังประเมินไม่ครบ)
+    <button type="button" class="submit-btn" data-testid="submit-evaluations-btn">
+      ส่งผลการประเมิน (Submit)
     </button>
-
-    <div class="result-panel" id="result-panel">
-      <h4>ส่งผลการประเมินสำเร็จ</h4>
-      <p id="result-desc">ข้อมูลทั้งหมดถูกบันทึกเข้าระบบเรียบร้อยแล้ว</p>
-      <div style="margin-top: 12px; display: flex; gap: 8px;">
-        <button type="button" class="action-btn" id="view-score-btn" style="background:#16a34a; color:white; border:none;">ดูคะแนนของฉัน (My Score)</button>
-      </div>
-      <div id="score-details" style="margin-top:12px; font-size:0.9rem; line-height: 1.6;"></div>
-    </div>
   </div>
-
-    <!-- 3. TEACHER DASHBOARD VIEW (TEACHER ONLY) -->
-    <div id="teacher-view" style="display: none;">
-      <div class="user-profile-bar">
-        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85rem;">
-          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
-            <span style="color: var(--text-muted);">ผู้ใช้งาน:</span>
-            <strong id="teacher-name" style="color: #0f172a;">อาจารย์ผู้สอน (Teacher)</strong>
-          </div>
-          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; color: #166534; font-weight: 600;">
-            <span>บทบาท:</span>
-            <span style="background: #16a34a; color: white; padding: 1px 8px; border-radius: 4px; font-size: 0.75rem; letter-spacing: 0.5px;">INSTRUCTOR / OWNER</span>
-          </div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-          <button type="button" class="top-nav-btn" id="teacher-logout-btn" data-testid="teacher-logout-btn" style="background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3;">ออกจากระบบ (Logout)</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3 style="font-size: 1.15rem; margin-bottom: 8px;">แดชบอร์ดอาจารย์ผู้สอน (Teacher Console)</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">
-          ภาพรวมการประเมินและการส่งออกคะแนน Pairwise Comparison ประจำวิชา
-        </p>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
-          <div style="background: #f1f5f9; padding: 14px; border-radius: 8px; border: 1px solid var(--border);">
-            <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">สถานะงานมอบหมาย</div>
-            <div style="font-size: 1.2rem; font-weight: 700; color: #16a34a; margin-top: 4px;" id="teacher-assignment-status">PUBLISHED</div>
-          </div>
-          <div style="background: #f1f5f9; padding: 14px; border-radius: 8px; border: 1px solid var(--border);">
-            <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">ผลการประเมินที่ส่งแล้วทั้งหมด</div>
-            <div style="font-size: 1.2rem; font-weight: 700; color: var(--primary); margin-top: 4px;" id="teacher-total-submissions">0 ข้อ</div>
-          </div>
-        </div>
-
-        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-          <h4 style="color: #166534; margin-bottom: 6px; font-size: 1rem;">ศูนย์ส่งออกข้อมูล (Export Center) — สิทธิ์เฉพาะอาจารย์ผู้สอน</h4>
-          <p style="font-size: 0.85rem; color: #15803d; margin-bottom: 14px;">
-            ระบบจำกัดสิทธิ์เฉพาะอาจารย์ผู้สอนเท่านั้นที่สามารถส่งออกรายงาน CSV ได้ เพื่อรักษาความปลอดภัยและความเป็นส่วนตัวของนักศึกษาตามข้อกำหนด PRD (FR-AUTHZ-01, FR-EXPORT-01)
-          </p>
-          <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-            <button type="button" class="action-btn" id="teacher-export-group-csv" data-testid="teacher-export-group-csv" style="background: #16a34a; color: white; border: none; padding: 10px 18px; font-weight: 600; cursor: pointer;">ดาวน์โหลดรายงานสรุปคะแนนกลุ่ม (Group Summary CSV)</button>
-            <button type="button" class="action-btn" id="teacher-export-raw-csv" data-testid="teacher-export-raw-csv" style="background: white; border: 1px solid #cbd5e1; padding: 10px 18px; font-weight: 600; cursor: pointer;">ดาวน์โหลดรายงานการเปรียบเทียบดิบ (Raw Comparisons CSV)</button>
-          </div>
-        </div>
-
-        <h4 style="font-size: 1rem; margin-bottom: 10px;">สรุปคะแนนกลุ่มล่าสุด (Live Group Scores)</h4>
-        <div style="overflow-x: auto;">
-          <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;" id="teacher-scores-table">
-            <thead>
-              <tr style="background: #f8fafc; border-bottom: 2px solid var(--border);">
-                <th style="padding: 10px 12px;">รหัสกลุ่ม</th>
-                <th style="padding: 10px 12px;">ชื่อกลุ่ม</th>
-                <th style="padding: 10px 12px; text-align: right;">คะแนนกลุ่มที่คำนวณได้</th>
-                <th style="padding: 10px 12px; text-align: center;">สถานะ</th>
-              </tr>
-            </thead>
-            <tbody id="teacher-groups-tbody">
-              <tr><td colspan="4" style="padding: 12px; text-align: center; color: var(--text-muted);">กำลังโหลดข้อมูลสรุปคะแนน...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    let pairs = [];
-    let currentIndex = 0;
-    let isSubmitted = false;
-    const assignmentId = 'asg_demo';
-    let currentUser = null;
-    let criteriaMap = {};
-
-    function showLoginError(msg) {
-      const errEl = document.getElementById('login-error');
-      errEl.textContent = msg;
-      errEl.style.display = 'block';
-    }
-
-    function isTeacherRole(role) {
-      return role === 'OWNER' || role === 'TEACHER' || role === 'CO_TEACHER' || role === 'TA' || role === 'INSTRUCTOR';
-    }
-
-    function checkSession() {
-      const saved = sessionStorage.getItem('paireval_current_user');
-      if (saved) {
-        try {
-          currentUser = JSON.parse(saved);
-          enterAppView();
-          return;
-        } catch (e) {
-          sessionStorage.removeItem('paireval_current_user');
-        }
-      }
-      document.getElementById('login-view').style.display = 'block';
-      document.getElementById('eval-view').style.display = 'none';
-      document.getElementById('teacher-view').style.display = 'none';
-    }
-
-    function enterAppView() {
-      document.getElementById('login-view').style.display = 'none';
-      if (isTeacherRole(currentUser.role)) {
-        document.getElementById('eval-view').style.display = 'none';
-        document.getElementById('teacher-view').style.display = 'block';
-        document.getElementById('teacher-name').textContent = currentUser.displayName || currentUser.studentCode || 'อาจารย์ผู้สอน';
-        loadTeacherDashboard();
-      } else {
-        document.getElementById('teacher-view').style.display = 'none';
-        document.getElementById('eval-view').style.display = 'block';
-        document.getElementById('evaluator-name').textContent = currentUser.displayName || currentUser.studentCode;
-        document.getElementById('evaluator-group-name').textContent = currentUser.groupName || 'ไม่มีกลุ่ม';
-        currentIndex = 0;
-        document.getElementById('score-details').innerHTML = '';
-        loadData();
-      }
-    }
-
-    async function loadTeacherDashboard() {
-      if (!currentUser) return;
-      try {
-        const res = await fetch('/api/assignments/' + assignmentId + '/overview', {
-          headers: {
-            'x-user-id': currentUser.id,
-            'x-user-role': currentUser.role || 'TEACHER'
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          document.getElementById('teacher-assignment-status').textContent = data.status || 'PUBLISHED';
-          document.getElementById('teacher-total-submissions').textContent = (data.totalComparisons || 0) + ' ข้อ';
-
-          const tbody = document.getElementById('teacher-groups-tbody');
-          if (data.groups && data.groups.length > 0) {
-            tbody.innerHTML = data.groups.map(grp => {
-              const scoreText = (grp.totalScore !== undefined && grp.totalScore !== null)
-                ? Number(grp.totalScore).toFixed(3) + ' / ' + Number(grp.maxScore || 15).toFixed(3)
-                : '-';
-              return '<tr style="border-bottom: 1px solid var(--border);">' +
-                '<td style="padding: 10px 12px; font-weight: 600;">' + grp.id + '</td>' +
-                '<td style="padding: 10px 12px;">' + grp.name + '</td>' +
-                '<td style="padding: 10px 12px; text-align: right; font-weight: 700; color: #16a34a;">' + scoreText + '</td>' +
-                '<td style="padding: 10px 12px; text-align: center;"><span style="background: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem;">พร้อมส่งออก</span></td>' +
-                '</tr>';
-            }).join('');
-          } else {
-            tbody.innerHTML = '<tr><td colspan="4" style="padding: 12px; text-align: center; color: var(--text-muted);">ไม่พบข้อมูลกลุ่ม</td></tr>';
-          }
-        }
-      } catch (err) {
-        console.error('Error loading teacher dashboard:', err);
-      }
-    }
-
-    async function loadData() {
-      if (!currentUser) return;
-      try {
-        const res = await fetch('/api/assignments/' + assignmentId + '/my-evaluations?side=GROUP', {
-          headers: { 'x-user-id': currentUser.id, 'x-user-role': currentUser.role || 'STUDENT' }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          criteriaMap = {};
-          (data.criteria || []).forEach(c => { criteriaMap[c.id] = c.name; });
-          pairs = (data.comparisons || []).map(c => ({
-            ...c,
-            criterionName: criteriaMap[c.criterionId] || 'User Experience (UX)'
-          }));
-          const allSubmitted = pairs.length > 0 && pairs.every(p => p.status === 'SUBMITTED');
-          if (allSubmitted) {
-            lockInputs();
-            document.getElementById('result-panel').style.display = 'block';
-            document.getElementById('result-desc').textContent = 'ส่งผลการประเมินจำนวน ' + pairs.length + ' ข้อเรียบร้อยแล้ว';
-          } else {
-            unlockInputs();
-          }
-          renderPair();
-        }
-      } catch (err) {
-        console.error('Error loading evaluations:', err);
-      }
-    }
-
-    function updateProgressAndSubmitState() {
-      if (!pairs || pairs.length === 0) return;
-      const answeredCount = pairs.filter(p => p.currentChoice !== null && p.currentChoice !== undefined).length;
-      const isComplete = answeredCount === pairs.length;
-
-      document.getElementById('progress-indicator').textContent = 'ประเมินแล้ว ' + answeredCount + ' / ' + pairs.length + ' คู่ (ข้อที่ ' + (currentIndex + 1) + ')';
-
-      const submitBtn = document.getElementById('submit-btn');
-      if (isSubmitted) {
-        submitBtn.style.display = 'none';
-      } else if (!isComplete) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'ส่งผลการประเมิน (ยังประเมินไม่ครบ: ขาดอีก ' + (pairs.length - answeredCount) + ' คู่)';
-      } else {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'ส่งผลการประเมิน (Submit)';
-      }
-    }
-
-    function renderPair() {
-      if (!pairs || pairs.length === 0) return;
-      const cur = pairs[currentIndex];
-      document.getElementById('criterion-name').textContent = 'เกณฑ์: ' + (cur.criterionName || 'การประเมินกลุ่ม');
-      document.getElementById('left-item-name').textContent = cur.leftItem ? cur.leftItem.name : 'กลุ่ม Borealis';
-      document.getElementById('right-item-name').textContent = cur.rightItem ? cur.rightItem.name : 'กลุ่ม Cosmos';
-      
-      const radios = document.querySelectorAll('input[name="pair_eval"]');
-      radios.forEach(r => {
-        r.checked = (cur.currentChoice && String(cur.currentChoice) === r.value) ? true : false;
-        r.disabled = isSubmitted ? true : false;
-      });
-
-      const statusEl = document.getElementById('autosave-status');
-      if (isSubmitted) {
-        statusEl.textContent = 'สถานะ: ส่งผลการประเมินแล้ว (ล็อกคำตอบ ไม่สามารถแก้ไขได้)';
-      } else if (cur.currentChoice) {
-        statusEl.textContent = 'สถานะ: บันทึกฉบับร่างของคู่นี้แล้ว (เลือกเบอร์ ' + cur.currentChoice + ')';
-      } else {
-        statusEl.textContent = 'สถานะ: ยังไม่ได้เลือกคำตอบสำหรับคู่นี้ (กรุณาเลือก 1-6)';
-      }
-
-      updateProgressAndSubmitState();
-    }
-
-    function lockInputs() {
-      isSubmitted = true;
-      document.querySelectorAll('input[name="pair_eval"]').forEach(r => {
-        r.disabled = true;
-      });
-      document.getElementById('autosave-status').textContent = 'สถานะ: ส่งผลการประเมินแล้ว (ล็อกคำตอบ ไม่สามารถแก้ไขได้)';
-      document.getElementById('submit-btn').style.display = 'none';
-      document.getElementById('revote-btn').style.display = 'inline-block';
-    }
-
-    function unlockInputs() {
-      isSubmitted = false;
-      document.querySelectorAll('input[name="pair_eval"]').forEach(r => {
-        r.disabled = false;
-      });
-      document.getElementById('submit-btn').style.display = 'block';
-      document.getElementById('revote-btn').style.display = 'none';
-      document.getElementById('result-panel').style.display = 'none';
-      updateProgressAndSubmitState();
-      renderPair();
-    }
-
-    let debounceTimer = null;
-    document.querySelectorAll('input[name="pair_eval"]').forEach(r => {
-      r.addEventListener('change', (e) => {
-        if (isSubmitted || !currentUser) return;
-        const val = parseInt(e.target.value, 10);
-        if (pairs[currentIndex]) {
-          pairs[currentIndex].currentChoice = val;
-          updateProgressAndSubmitState();
-          const statusEl = document.getElementById('autosave-status');
-          statusEl.textContent = 'สถานะ: กำลังบันทึกฉบับร่าง...';
-          
-          clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(async () => {
-            try {
-              const pairId = pairs[currentIndex].pairAssignmentId;
-              const res = await fetch('/api/comparisons/' + pairId, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.id },
-                body: JSON.stringify({ choice: val, timeOnTaskMs: 2500 })
-              });
-              if (res.ok) {
-                const now = new Date();
-                statusEl.textContent = 'สถานะ: บันทึกฉบับร่างแล้ว เมื่อ ' + now.toLocaleTimeString('th-TH');
-              }
-            } catch (err) {
-              statusEl.textContent = 'สถานะ: บันทึกไม่สำเร็จ';
-            }
-          }, 300);
-        }
-      });
-    });
-
-    document.getElementById('prev-btn').addEventListener('click', () => {
-      if (currentIndex > 0) { currentIndex--; renderPair(); }
-    });
-    document.getElementById('next-btn').addEventListener('click', () => {
-      if (currentIndex < pairs.length - 1) { currentIndex++; renderPair(); }
-    });
-
-    document.getElementById('revote-btn').addEventListener('click', () => {
-      unlockInputs();
-    });
-
-    document.getElementById('submit-btn').addEventListener('click', async () => {
-      if (!currentUser) return;
-      const answeredCount = pairs.filter(p => p.currentChoice !== null && p.currentChoice !== undefined).length;
-      if (answeredCount < pairs.length) {
-        alert('กรุณาทำการประเมินให้ครบทุกคู่ก่อนกดส่งผลการประเมิน (ยังเหลืออีก ' + (pairs.length - answeredCount) + ' คู่ที่ยังไม่ได้เลือก)');
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/assignments/' + assignmentId + '/submissions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': currentUser.id,
-            'Idempotency-Key': 'sub_' + currentUser.id + '_' + Date.now()
-          },
-          body: JSON.stringify({ side: 'GROUP' })
-        });
-        if (res.ok) {
-          const result = await res.json();
-          pairs.forEach(p => { p.status = 'SUBMITTED'; });
-          document.getElementById('result-panel').style.display = 'block';
-          document.getElementById('result-desc').textContent = 'ส่งผลการประเมินจำนวน ' + (result.submittedCount || pairs.length) + ' ข้อเรียบร้อยแล้ว';
-          lockInputs();
-        }
-      } catch (err) {
-        alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
-      }
-    });
-
-    document.getElementById('view-score-btn').addEventListener('click', async () => {
-      if (!currentUser) return;
-      try {
-        const res = await fetch('/api/assignments/' + assignmentId + '/my-score', {
-          headers: { 'x-user-id': currentUser.id }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const detailsEl = document.getElementById('score-details');
-          const groupScore = data.groupScore !== null && data.groupScore !== undefined ? data.groupScore.toFixed(3) : '9.000';
-          const p = data.participationRatio !== undefined ? (data.participationRatio * 100).toFixed(0) : '100';
-          const m = data.participationMultiplier !== undefined ? data.participationMultiplier : '1.0';
-          detailsEl.innerHTML = '<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-top:8px;">' +
-            '<strong>สรุปคะแนนของ ' + (currentUser.displayName || currentUser.studentCode) + ' (' + currentUser.groupName + '):</strong><br>' +
-            '• คะแนนกลุ่ม (Group Score): <strong>' + groupScore + ' / 15.000</strong><br>' +
-            '• การมีส่วนร่วมประเมิน (Participation p): <strong>' + p + '%</strong><br>' +
-            '• ตัวคูณการประเมิน (Multiplier M): <strong>' + m + '</strong><br>' +
-            '• สถานะคะแนน: <em>' + (data.isFinal ? 'คะแนนเป็นทางการ' : 'คะแนนชั่วคราวระหว่างทาง') + '</em><br><br>' +
-            '<small style="color:#64748b;"><strong>วิธีคิดคะแนนตาม PRD §9.3 & §9.4:</strong><br>' +
-            '1. กลุ่มที่ส่งงานได้ฐานคะแนน Floor 60% (15 × 0.60 = 9.000)<br>' +
-            '2. ส่วนที่เหลือ 40% คำนวณจากผลการเปรียบเทียบคู่ (Quality Index q)<br>' +
-            '3. คะแนนส่วนบุคคล = (คะแนนกลุ่ม + คะแนนเดี่ยว) × M โดยถ้าส่งครบ p ≥ 90% จะได้ M = 1.0 เต็ม ไม่ถูกหักคะแนน</small>' +
-            '</div>';
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    });
-
-    async function downloadTeacherCsv(reportType) {
-      if (!currentUser) return;
-      try {
-        const res = await fetch('/api/assignments/' + assignmentId + '/exports', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': currentUser.id,
-            'x-user-role': currentUser.role || 'TEACHER'
-          },
-          body: JSON.stringify({ report: reportType, includeIdentities: false })
-        });
-        if (res.ok) {
-          const blob = await res.blob();
-          const downloadUrl = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = downloadUrl;
-          const disposition = res.headers.get('content-disposition');
-          let fname = 'paireval_' + reportType + '_' + assignmentId + '.csv';
-          if (disposition && disposition.includes('filename=')) {
-            const matches = /filename="?([^"]+)"?/.exec(disposition);
-            if (matches && matches[1]) fname = matches[1];
-          }
-          link.download = fname;
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          window.URL.revokeObjectURL(downloadUrl);
-        } else {
-          const err = await res.json().catch(() => ({}));
-          alert(err.error?.message || 'ไม่สามารถดาวน์โหลดไฟล์ CSV ได้ (สิทธิ์ไม่เพียงพอ)');
-        }
-      } catch (err) {
-        console.error('Download CSV error:', err);
-        alert('เกิดข้อผิดพลาดในการดาวน์โหลด CSV');
-      }
-    }
-
-    const exportGroupBtn = document.getElementById('teacher-export-group-csv');
-    if (exportGroupBtn) {
-      exportGroupBtn.addEventListener('click', () => downloadTeacherCsv('group'));
-    }
-
-    const exportRawBtn = document.getElementById('teacher-export-raw-csv');
-    if (exportRawBtn) {
-      exportRawBtn.addEventListener('click', () => downloadTeacherCsv('raw-comparisons'));
-    }
-
-    // Login Form Submission
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const username = document.getElementById('login-username').value.trim();
-      const password = document.getElementById('login-password').value;
-      document.getElementById('login-error').style.display = 'none';
-
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          currentUser = data.user;
-          sessionStorage.setItem('paireval_current_user', JSON.stringify(currentUser));
-          enterAppView();
-        } else {
-          const err = await res.json();
-          showLoginError(err.error?.message || 'รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง');
-        }
-      } catch (e) {
-        showLoginError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
-      }
-    });
-
-    // Quick Login Buttons - fill credentials without auto-submitting
-    document.querySelectorAll('.quick-login-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const u = e.currentTarget.getAttribute('data-username');
-        const usernameInput = document.getElementById('login-username');
-        const passwordInput = document.getElementById('login-password');
-        usernameInput.value = u;
-        passwordInput.value = '0123456789';
-
-        // Highlight selected quick-login button
-        document.querySelectorAll('.quick-login-btn').forEach(b => {
-          b.style.borderColor = b.classList.contains('teacher-item') ? '#86efac' : '#cbd5e1';
-          b.style.boxShadow = 'none';
-        });
-        e.currentTarget.style.borderColor = 'var(--primary)';
-        e.currentTarget.style.boxShadow = '0 0 0 2px rgba(37, 99, 235, 0.25)';
-
-        // Clear previous error
-        document.getElementById('login-error').style.display = 'none';
-
-        // Show friendly guidance message
-        const hintEl = document.getElementById('quick-login-hint');
-        if (hintEl) {
-          hintEl.textContent = 'เติมรหัส ' + u + ' และรหัสผ่านเรียบร้อยแล้ว กรุณากดปุ่ม "เข้าสู่ระบบ (Login)" ด้านบน';
-          hintEl.style.display = 'block';
-        }
-
-        // Focus submit button so user can click or press Enter
-        document.getElementById('login-submit-btn').focus();
-      });
-    });
-
-    // Logout
-    function doLogout() {
-      sessionStorage.removeItem('paireval_current_user');
-      currentUser = null;
-      document.getElementById('login-username').value = '';
-      document.getElementById('login-password').value = '';
-      document.getElementById('login-error').style.display = 'none';
-      const hintEl = document.getElementById('quick-login-hint');
-      if (hintEl) hintEl.style.display = 'none';
-      document.querySelectorAll('.quick-login-btn').forEach(b => {
-        b.style.borderColor = b.classList.contains('teacher-item') ? '#86efac' : '#cbd5e1';
-        b.style.boxShadow = 'none';
-      });
-      document.getElementById('login-view').style.display = 'block';
-      document.getElementById('eval-view').style.display = 'none';
-      document.getElementById('teacher-view').style.display = 'none';
-    }
-
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) logoutBtn.addEventListener('click', doLogout);
-
-    const teacherLogoutBtn = document.getElementById('teacher-logout-btn');
-    if (teacherLogoutBtn) teacherLogoutBtn.addEventListener('click', doLogout);
-
-    checkSession();
-  </script>
 </body>
 </html>`);
 });

@@ -10,8 +10,6 @@ import {
 
 export interface UserEntity {
   id: string;
-  studentCode?: string;
-  password?: string;
   emailRaw: string;
   emailNormalized: string;
   displayName: string;

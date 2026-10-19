@@ -5,12 +5,22 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx src/server/index.ts",
-    "build": "tsc",
+    "dev": "next dev --webpack",
+    "demo": "tsx scripts/demo.ts",
+    "demo:resume": "tsx scripts/resume-demo.ts",
+    "test:demo": "tsx scripts/demo.ts --test",
+    "build": "next build --webpack",
+    "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint:spec": "npx @redocly/cli lint docs/openapi.yaml",
-    "typecheck": "tsc --noEmit"
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test",
+    "lint": "eslint src/app src/components src/domain src/db src/http src/auth.ts",
+    "lint:spec": "redocly lint docs/openapi.yaml",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts"
   },
   "keywords": [
     "pairwise",
@@ -21,15 +31,39 @@
   "author": "CE-SDPX Team",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.21.2"
+    "@fontsource-variable/noto-sans-thai": "5.3.0",
+    "csv-parse": "7.0.3",
+    "decimal.js": "10.6.0",
+    "drizzle-orm": "0.45.4",
+    "express": "^4.21.2",
+    "next": "16.4.0",
+    "next-auth": "4.24.15",
+    "pino": "10.4.0",
+    "postgres": "3.4.9",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.64.1",
     "@redocly/cli": "^1.25.12",
+    "@tailwindcss/postcss": "4.3.3",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitest/coverage-v8": "3.2.7",
+    "drizzle-kit": "0.31.11",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.0",
     "fast-check": "^3.23.2",
+    "tailwindcss": "4.3.3",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
+  },
+  "engines": {
+    "node": ">=22 <26"
   }
 }

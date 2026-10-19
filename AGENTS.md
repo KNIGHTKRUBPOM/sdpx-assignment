@@ -4,10 +4,14 @@
 PairEval — ระบบประเมินผลนักศึกษาแบบ Pairwise Comparison สำหรับงานกลุ่มและรายบุคคล เพื่อลดอคติการให้คะแนนเดี่ยวและแก้ปัญหา Free-rider (รายละเอียดดู `memory-bank/intent.md`)
 
 ## Setup & Commands
-- install: `npm install`
+- install: `npm ci` (Node.js 22)
 - dev:     `npm run dev`
 - test:    `npm test`
-- lint:    `npm run lint:spec`
+- lint:    `npm run lint` and `npm run lint:spec`
+- types:   `npm run typecheck`
+- database integration: `npx tsx scripts/test-database.ts integration` (Docker)
+- browser: `npm run build` then `npx tsx scripts/test-database.ts e2e --repeat-each=3`
+- runtime/restore: `npx tsx scripts/test-database.ts ops`
 - build:   `npm run build`
 
 ## Conventions

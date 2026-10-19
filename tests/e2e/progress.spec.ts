@@ -1,0 +1,36 @@
+import { test, expect } from "./fixtures/pilot";
+import AxeBuilder from "@axe-core/playwright";
+
+test("personal progress distinguishes saved, submitted and edited answers across reloads and dashboard", async ({ page, pilot }, testInfo) => {
+  await pilot.login(pilot.student);
+  await page.goto(`/assignments/${pilot.assignmentId}`);
+  const group = page.getByTestId("my-progress-GROUP"), individual = page.getByTestId("my-progress-INDIVIDUAL");
+  await expect(group).toContainText("เหลือประเมิน 1 คู่");
+  await expect(individual).toContainText("เหลือประเมิน 3 คู่");
+  await page.getByRole("tab", { name: "ประเมินกลุ่ม", exact: true }).click();
+  await page.getByTestId("choice-2").check();
+  await expect(group).toContainText("ประเมินครบแล้ว รอกดส่ง");
+  await expect(group).toContainText("ยังขาดส่งคำตอบล่าสุด 1 คู่");
+  await page.reload();
+  await expect(group).toContainText("ประเมินครบแล้ว รอกดส่ง");
+  await page.getByRole("tab", { name: "ประเมินกลุ่ม", exact: true }).click();
+  await page.getByTestId("submit-evaluations-btn").click();
+  await expect(group).toContainText("ส่งครบแล้ว");
+  await expect(individual).toContainText("ยังไม่ได้เริ่มประเมิน");
+  await page.getByTestId("choice-3").check();
+  await expect(group).toContainText("มีคำตอบแก้ไข ต้องส่งใหม่");
+  await page.reload();
+  await expect(group).toContainText("แก้ไขหลังส่ง 1 คู่");
+  await page.getByRole("tab", { name: "ประเมินกลุ่ม", exact: true }).click();
+  await page.getByTestId("submit-evaluations-btn").click();
+  await expect(group).toContainText("ยังขาดส่งคำตอบล่าสุด 0 คู่");
+  await page.goto("/dashboard");
+  await expect(page.getByTestId("pending-evaluation-summary")).toContainText("เหลือประเมิน 3 คู่ · ยังขาดส่งคำตอบล่าสุด 3 คู่");
+  const card = page.locator(`a[href="/assignments/${pilot.assignmentId}"]`);
+  await expect(card.getByTestId("my-progress-GROUP")).toContainText("ส่งครบแล้ว");
+  await expect(card.getByTestId("my-progress-INDIVIDUAL")).toContainText("เหลือประเมิน 3 คู่");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("progress-mobile.png"), fullPage: true });
+});

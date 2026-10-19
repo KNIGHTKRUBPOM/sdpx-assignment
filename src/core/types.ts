@@ -2,7 +2,7 @@
  * Core domain types and interfaces for PairEval
  */
 
-export type Role = 'OWNER' | 'CO_TEACHER' | 'TA' | 'STUDENT' | 'TEACHER';
+export type Role = 'OWNER' | 'CO_TEACHER' | 'TA' | 'STUDENT';
 
 export type AssignmentStatus =
   | 'DRAFT'
@@ -62,6 +62,9 @@ export interface PairAssignment {
 
 export interface SubmittedComparison {
   id: string;
+  /** Required by the persistent application; optional for legacy fixtures. */
+  assignmentId?: string;
+  criterionId?: string;
   pairAssignmentId: string;
   evaluatorUserId: string;
   isInstructor: boolean;

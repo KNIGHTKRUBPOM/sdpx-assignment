@@ -1,0 +1,16 @@
+# PairEval design language
+
+Use [TypeUI Essential](https://www.typeui.sh/design-skills/essential) for clear layout, readable text, soft depth and 20 px cards; [TypeUI Charm](https://www.typeui.sh/design-skills/charm) for warm surfaces, rounded controls and consistent overlays. This adaptation uses the public design guidance, not a downloaded or purchased TypeUI skill package. Earlier [Notion/Linear references](https://github.com/VoltAgent/awesome-design-md) informed the workspace structure.
+
+The user chose a KMITL institution palette. [KMITL identifies สีแสด as its institution color](https://www.kmitl.ac.th/kmitl-symbols). Use orange and warm white rather than Essential blue or Charm coral. These app-specific hex values are an accessible interpretation, not a claim of exact official CI certification. Retain PairEval's own name and icon; do not imply this is an official university service.
+
+- Brand decoration: orange #e35205; actions and links: darker orange #b84405 with white text, hover #943600. Bright brand orange is not used for small text on white. Green means actual success; red means actual error. Labels also explain every status.
+- Surfaces: warm white #faf8f5 canvas, white panels, #fff3e8 supporting fills, #e8e2dc separators. Text #292524; supporting text #66605b. Avoid decorative success colors in summary statistics.
+- Spacing: 4/8/12/16/24/32/48 px, 1280 px container. Cards 20 px corners, dialogs 24 px, pill action buttons, 44 px touch targets. Keep long Thai headings at normal tracking with generous line height.
+- Structure: navigation, page context, real summary counts, then tasks and management. No invented metrics or student data. Synthetic examples must say so explicitly.
+- Forms: persistent labels, visible focus, input retained on failure, obvious primary action. Errors appear in accessible modal dialogs with a plain-language message and optional reference code. Escape/dismiss restores focus. Success and operation results appear in floating popup notifications, without inserting a banner into the layout. Autosave uses a brief non-blocking popup; other results remain until dismissed or the next action. Archive confirmation defaults focus to Cancel and requires exact room name plus reason.
+- Pending: show a spinner and action text, prevent duplicate writes, avoid fetching the entire dashboard after a link save. Navigation retains Next link pending feedback.
+- Tables: quiet header, separators and internal horizontal scroll; group dropdown and search sit above the roster. Archived rooms are secondary collapsed links; all writes are disabled in the UI and rejected by the server.
+- Typography: self-host Noto Sans Thai Variable (OFL-1.1) via the pinned Fontsource package for Thai and Latin. Use 400 body, 600 labels, 650 section headings and 700 page headings, with system fallback and font-display swap. Font files ship with the app; no Google Fonts request is needed at runtime.
+- Motion: short color transitions and reduced-motion support. No additional UI framework dependencies.
+- Responsive: summary collapses at 600 px; management columns at 850 px. Verify keyboard focus, modal accessibility, text contrast and horizontal overflow on mobile. Preserve privacy thresholds and all existing data-testid values.
