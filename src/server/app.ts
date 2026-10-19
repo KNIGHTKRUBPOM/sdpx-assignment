@@ -1124,6 +1124,68 @@ app.get('/', (req: Request, res: Response) => {
     .btn-row { display: flex; gap: 10px; margin-bottom: 12px; }
     .action-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
     .action-btn:hover { background: #f1f5f9; }
+    .user-profile-bar {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .top-nav-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 8px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      line-height: 1.2;
+    }
+    .top-nav-btn:hover {
+      filter: brightness(0.95);
+      transform: translateY(-1px);
+    }
+    .quick-login-card {
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px dashed #cbd5e1;
+    }
+    .quick-login-btn {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: white;
+      cursor: pointer;
+      font-size: 0.84rem;
+      transition: all 0.15s ease;
+      text-align: left;
+    }
+    .quick-login-btn:hover {
+      border-color: var(--primary);
+      background: #f8fafc;
+    }
+    .quick-login-btn.teacher-item {
+      background: #f0fdf4;
+      border-color: #86efac;
+      color: #166534;
+    }
+    .quick-login-btn.teacher-item:hover {
+      background: #dcfce7;
+      border-color: #4ade80;
+    }
     .submit-btn { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     .submit-btn:hover { background: var(--primary-hover); }
     .submit-btn:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
@@ -1159,36 +1221,57 @@ app.get('/', (req: Request, res: Response) => {
         <button type="submit" class="submit-btn" id="login-submit-btn" data-testid="login-submit-btn" style="width: 100%; padding: 12px; font-size: 0.95rem;">เข้าสู่ระบบ (Login)</button>
       </form>
 
-      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border);">
-        <p style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px;">บัญชีนักศึกษาสำหรับทดสอบ (รหัสผ่านคือ 0123456789):</p>
-        <div style="display: flex; flex-direction: column; gap: 6px;">
-          <button type="button" class="action-btn quick-login-btn" data-username="67015155" style="font-size: 0.8rem; text-align: left; padding: 8px 12px;">
-            <strong>67015155</strong> — ไนท์ (กลุ่ม Aurora)
+      <div class="quick-login-card">
+        <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
+          คลิกเลือกบัญชีเพื่อเติมรหัสอัตโนมัติ:
+        </div>
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+          (เมื่อกดเลือกแล้ว ข้อมูลจะถูกเติมลงในกล่องข้อความด้านบน จากนั้นให้กดปุ่ม "เข้าสู่ระบบ (Login)" ด้วยตนเอง)
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button type="button" class="quick-login-btn" data-username="67015155">
+            <span><strong>67015155</strong> — ไนท์ (กลุ่ม Aurora)</span>
+            <span style="font-size: 0.75rem; color: var(--primary); background: #eff6ff; padding: 2px 8px; border-radius: 4px; font-weight: 600;">คลิกเลือก</span>
           </button>
-          <button type="button" class="action-btn quick-login-btn" data-username="67015105" style="font-size: 0.8rem; text-align: left; padding: 8px 12px;">
-            <strong>67015105</strong> — นักศึกษา (กลุ่ม Borealis)
+          <button type="button" class="quick-login-btn" data-username="67015105">
+            <span><strong>67015105</strong> — นักศึกษา (กลุ่ม Borealis)</span>
+            <span style="font-size: 0.75rem; color: var(--primary); background: #eff6ff; padding: 2px 8px; border-radius: 4px; font-weight: 600;">คลิกเลือก</span>
           </button>
-          <button type="button" class="action-btn quick-login-btn" data-username="67015167" style="font-size: 0.8rem; text-align: left; padding: 8px 12px;">
-            <strong>67015167</strong> — นักศึกษา (กลุ่ม Cosmos)
+          <button type="button" class="quick-login-btn" data-username="67015167">
+            <span><strong>67015167</strong> — นักศึกษา (กลุ่ม Cosmos)</span>
+            <span style="font-size: 0.75rem; color: var(--primary); background: #eff6ff; padding: 2px 8px; border-radius: 4px; font-weight: 600;">คลิกเลือก</span>
           </button>
-          <button type="button" class="action-btn quick-login-btn" data-username="teacher" style="font-size: 0.8rem; text-align: left; padding: 8px 12px; background: #f0fdf4; border-color: #86efac; color: #166534;">
-            <strong>teacher</strong> — อาจารย์ผู้สอน (สิทธิ์ดาวน์โหลด CSV)
+          <button type="button" class="quick-login-btn teacher-item" data-username="teacher">
+            <span><strong>teacher</strong> — อาจารย์ผู้สอน (สิทธิ์ดาวน์โหลด CSV)</span>
+            <span style="font-size: 0.75rem; color: #166534; background: #dcfce7; padding: 2px 8px; border-radius: 4px; font-weight: 600;">คลิกเลือก</span>
           </button>
         </div>
+
+        <div id="quick-login-hint" style="display: none; margin-top: 10px; padding: 8px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.8rem; color: #1d4ed8; text-align: center;"></div>
       </div>
     </div>
 
     <!-- 2. EVALUATION VIEW -->
     <div id="eval-view" style="display: none;">
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
-        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: 0.9rem;">
-          <span>ผู้ประเมิน: <strong id="evaluator-name">-</strong></span>
-          <span>กลุ่มของคุณ: <strong id="evaluator-group-name" style="color: var(--primary);">-</strong></span>
-          <span>บทบาท: <strong>STUDENT</strong></span>
+      <div class="user-profile-bar">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85rem;">
+          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <span style="color: var(--text-muted);">ผู้ประเมิน:</span>
+            <strong id="evaluator-name" style="color: #0f172a;">-</strong>
+          </div>
+          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; color: #1e40af;">
+            <span style="opacity: 0.85;">กลุ่มของคุณ:</span>
+            <strong id="evaluator-group-name">-</strong>
+          </div>
+          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; color: #334155; font-weight: 600;">
+            <span>บทบาท:</span>
+            <span style="background: #0284c7; color: white; padding: 1px 8px; border-radius: 4px; font-size: 0.75rem; letter-spacing: 0.5px;">STUDENT</span>
+          </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <button type="button" class="action-btn" id="revote-btn" style="display: none; padding: 6px 12px; font-size: 0.8rem; background: #e0f2fe; color: #0369a1; border-color: #7dd3fc;" title="ปลดล็อกเพื่อให้ผู้ใช้นี้แก้ไขคะแนนใหม่ได้ในโหมดทดสอบ">ประเมินใหม่ (Demo Re-vote)</button>
-          <button type="button" class="action-btn" id="logout-btn" data-testid="logout-btn" style="padding: 6px 12px; font-size: 0.8rem; background: #fee2e2; color: #991b1b; border-color: #fca5a5;">ออกจากระบบ (Logout)</button>
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          <button type="button" class="top-nav-btn" id="revote-btn" style="display: none; background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd;" title="ปลดล็อกเพื่อให้ผู้ใช้นี้แก้ไขคะแนนใหม่ได้ในโหมดทดสอบ">ประเมินใหม่ (Demo Re-vote)</button>
+          <button type="button" class="top-nav-btn" id="logout-btn" data-testid="logout-btn" style="background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3;">ออกจากระบบ (Logout)</button>
         </div>
       </div>
 
@@ -1273,12 +1356,20 @@ app.get('/', (req: Request, res: Response) => {
 
     <!-- 3. TEACHER DASHBOARD VIEW (TEACHER ONLY) -->
     <div id="teacher-view" style="display: none;">
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
-        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: 0.9rem;">
-          <span>ผู้ใช้งาน: <strong id="teacher-name">อาจารย์ผู้สอน (Teacher)</strong></span>
-          <span>บทบาท: <strong style="color: #0369a1;">อาจารย์ประจำวิชา (INSTRUCTOR / OWNER)</strong></span>
+      <div class="user-profile-bar">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85rem;">
+          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <span style="color: var(--text-muted);">ผู้ใช้งาน:</span>
+            <strong id="teacher-name" style="color: #0f172a;">อาจารย์ผู้สอน (Teacher)</strong>
+          </div>
+          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; color: #166534; font-weight: 600;">
+            <span>บทบาท:</span>
+            <span style="background: #16a34a; color: white; padding: 1px 8px; border-radius: 4px; font-size: 0.75rem; letter-spacing: 0.5px;">INSTRUCTOR / OWNER</span>
+          </div>
         </div>
-        <button type="button" class="action-btn" id="teacher-logout-btn" data-testid="teacher-logout-btn" style="padding: 6px 12px; font-size: 0.8rem; background: #fee2e2; color: #991b1b; border-color: #fca5a5;">ออกจากระบบ (Logout)</button>
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          <button type="button" class="top-nav-btn" id="teacher-logout-btn" data-testid="teacher-logout-btn" style="background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3;">ออกจากระบบ (Logout)</button>
+        </div>
       </div>
 
       <div class="card">
@@ -1689,13 +1780,35 @@ app.get('/', (req: Request, res: Response) => {
       }
     });
 
-    // Quick Login Buttons
+    // Quick Login Buttons - fill credentials without auto-submitting
     document.querySelectorAll('.quick-login-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const u = e.currentTarget.getAttribute('data-username');
-        document.getElementById('login-username').value = u;
-        document.getElementById('login-password').value = '0123456789';
-        document.getElementById('login-submit-btn').click();
+        const usernameInput = document.getElementById('login-username');
+        const passwordInput = document.getElementById('login-password');
+        usernameInput.value = u;
+        passwordInput.value = '0123456789';
+
+        // Highlight selected quick-login button
+        document.querySelectorAll('.quick-login-btn').forEach(b => {
+          b.style.borderColor = b.classList.contains('teacher-item') ? '#86efac' : '#cbd5e1';
+          b.style.boxShadow = 'none';
+        });
+        e.currentTarget.style.borderColor = 'var(--primary)';
+        e.currentTarget.style.boxShadow = '0 0 0 2px rgba(37, 99, 235, 0.25)';
+
+        // Clear previous error
+        document.getElementById('login-error').style.display = 'none';
+
+        // Show friendly guidance message
+        const hintEl = document.getElementById('quick-login-hint');
+        if (hintEl) {
+          hintEl.textContent = 'เติมรหัส ' + u + ' และรหัสผ่านเรียบร้อยแล้ว กรุณากดปุ่ม "เข้าสู่ระบบ (Login)" ด้านบน';
+          hintEl.style.display = 'block';
+        }
+
+        // Focus submit button so user can click or press Enter
+        document.getElementById('login-submit-btn').focus();
       });
     });
 
@@ -1706,6 +1819,12 @@ app.get('/', (req: Request, res: Response) => {
       document.getElementById('login-username').value = '';
       document.getElementById('login-password').value = '';
       document.getElementById('login-error').style.display = 'none';
+      const hintEl = document.getElementById('quick-login-hint');
+      if (hintEl) hintEl.style.display = 'none';
+      document.querySelectorAll('.quick-login-btn').forEach(b => {
+        b.style.borderColor = b.classList.contains('teacher-item') ? '#86efac' : '#cbd5e1';
+        b.style.boxShadow = 'none';
+      });
       document.getElementById('login-view').style.display = 'block';
       document.getElementById('eval-view').style.display = 'none';
       document.getElementById('teacher-view').style.display = 'none';
