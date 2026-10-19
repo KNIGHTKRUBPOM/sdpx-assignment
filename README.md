@@ -6,7 +6,27 @@
 
 ## เริ่มต้น
 
-ใช้ Node.js 22 และ Docker Desktop สำหรับฐานข้อมูลทดสอบ:
+### Demo สำหรับสาธิต ไม่ต้องใช้ Google
+
+ใช้ Node.js 22 และเปิด Docker Desktop ให้ Engine running ก่อน จาก PowerShell:
+
+```powershell
+cd D:\spdx-torpai-assignment
+npm ci
+npx playwright install chromium
+npm run demo
+```
+
+รอจนแสดง `Ready` แล้วเปิด **http://localhost:3101/login** เลือกอาจารย์สาธิตหรือนักศึกษาสาธิต เก็บ PowerShell หน้ารันและ Docker ไว้ตลอดการสาธิต หากติดตั้ง dependencies/browser แล้ว ไม่ต้องติดตั้งซ้ำทุกครั้ง
+
+- `npm run demo` เริ่มรอบใหม่ พร้อมห้อง 3 กลุ่ม × 4 คนและงานประเมินที่เปิดแล้ว; **Ctrl+C จะลบฐานข้อมูลชั่วคราวของรอบนั้น**
+- ถ้าเว็บหยุดแต่ฐานข้อมูล Docker รอบเดิมยังอยู่ ใช้ `npm run demo:resume` เพื่อสร้างเว็บเวอร์ชันปัจจุบันและเปิดข้อมูลเดิม เลือกบัญชีใหม่หลังเปิดสำเร็จ
+- ถ้า localhost เปิดอยู่แล้ว ใช้เว็บรอบเดิมได้เลย ตัวรันจะไม่สร้างฐานข้อมูลหรือ build ทับขณะพอร์ตยังถูกใช้งาน
+- ดู [ขั้นตอนสร้างงานประเมินและสาธิตจนได้รายงาน](docs/demo.md) สำหรับห้องใหม่และชุดนักศึกษา 9 คน
+
+### พัฒนาระบบที่ใช้ Google จริง
+
+ตั้งค่า environment ด้านล่างให้ครบก่อน แล้วรัน:
 
 ```sh
 npm ci
@@ -14,7 +34,7 @@ npm test
 npm run dev
 ```
 
-หน้าแรกเปิดที่ http://localhost:3000 ได้ทันที ส่วน login/ข้อมูลจริงต้องตั้งค่าต่อไปนี้ผ่าน environment หรือไฟล์ `.env.local` ที่ไม่ commit:
+เปิด http://localhost:3000 สำหรับระบบ Google จริง ตั้งค่าผ่าน environment หรือไฟล์ `.env.local` ที่ไม่ commit:
 
 - `DATABASE_URL`: PostgreSQL runtime connection (Supabase transaction pooler; prepare disabled)
 - `MIGRATION_DATABASE_URL`: admin/session connection สำหรับ migrations เท่านั้น

@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "demo": "tsx scripts/demo.ts",
+    "demo:resume": "tsx scripts/resume-demo.ts",
     "test:demo": "tsx scripts/demo.ts --test",
     "build": "next build --webpack",
     "start": "next start",

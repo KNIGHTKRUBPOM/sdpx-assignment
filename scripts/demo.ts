@@ -4,6 +4,7 @@ import { setTimeout } from "node:timers/promises";
 import { connectDatabase } from "../src/db/client";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { demoAccounts } from "../src/demo/config";
+import { assertDemoPortAvailable } from "./demo-port";
 
 if (process.env.VERCEL || process.env.VERCEL_ENV || process.env.VERCEL_URL)
   throw new Error("The demo runner is local only; it cannot run on Vercel");
@@ -24,6 +25,7 @@ function cleanup() {
 for (const signal of ["SIGINT", "SIGTERM"] as const)
   process.once(signal, () => { cleanup(); process.exit(signal === "SIGINT" ? 130 : 143); });
 try {
+  await assertDemoPortAvailable();
   docker(["run", "--rm", "-d", "--name", name, "-e", "POSTGRES_PASSWORD", "-e", "POSTGRES_DB=paireval_demo", "-p", "127.0.0.1::5432", "--tmpfs", "/var/lib/postgresql/data", "postgres:17.6-alpine"]);
   started = true;
   const port = docker(["port", name, "5432/tcp"]).split(":").at(-1);
@@ -53,7 +55,7 @@ try {
     console.log("\nPairEval Demo: http://localhost:3101/login\nเลือกสลับอาจารย์และนักศึกษาได้ ข้อมูลสมมติจะหายเมื่อปิดรอบนี้ด้วย Ctrl+C\n");
     await run(["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", "3101"]);
   }
-} catch {
-  console.error("Demo เริ่มไม่สำเร็จหรือถูกหยุด ตรวจข้อความด้านบน แล้วเปิดใหม่ด้วย npm run demo");
+} catch (error) {
+  console.error(error instanceof Error && error.message.startsWith("พอร์ต ") ? error.message : "Demo เริ่มไม่สำเร็จหรือถูกหยุด ตรวจข้อความด้านบน หากฐานข้อมูลรอบเดิมยังทำงานให้ใช้ npm run demo:resume");
   process.exitCode = 1;
 } finally { cleanup(); }
