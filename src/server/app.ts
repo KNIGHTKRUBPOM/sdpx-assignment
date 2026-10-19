@@ -74,6 +74,66 @@ function getAuthUser(req: Request) {
 }
 
 // ==========================================
+// 0. AUTH ENDPOINTS (Student & Instructor Login)
+// ==========================================
+
+app.post('/api/auth/login', (req: Request, res: Response) => {
+  const { username, password } = req.body || {};
+  if (!username) {
+    return sendError(res, 400, 'MISSING_FIELD', 'กรุณาระบุรหัสนักศึกษา (Username)');
+  }
+
+  const rawUser = String(username).trim();
+  const lowerUser = rawUser.toLowerCase();
+
+  // Find user by studentCode, id, or emailNormalized
+  const user = Array.from(memoryStore.users.values()).find(
+    (u) =>
+      (u.studentCode && u.studentCode.toLowerCase() === lowerUser) ||
+      u.id.toLowerCase() === lowerUser ||
+      u.id.toLowerCase() === `std_${lowerUser}` ||
+      u.emailNormalized === lowerUser ||
+      u.emailNormalized.startsWith(lowerUser + '@'),
+  );
+
+  if (!user) {
+    return sendError(res, 401, 'INVALID_CREDENTIALS', 'ไม่พบรหัสนักศึกษานี้ในระบบ');
+  }
+
+  const expectedPassword = user.password || '0123456789';
+  if (password !== expectedPassword) {
+    return sendError(
+      res,
+      401,
+      'INVALID_CREDENTIALS',
+      'รหัสผ่านไม่ถูกต้อง (รหัสผ่านเริ่มต้นคือ 0123456789)',
+    );
+  }
+
+  // Find membership & group
+  const member = Array.from(memoryStore.classroomMembers.values()).find(
+    (m) => m.userId === user.id,
+  );
+  let groupName = 'ไม่มีกลุ่ม';
+  if (member?.groupId) {
+    const grp = memoryStore.groups.get(member.groupId);
+    if (grp) groupName = grp.name;
+  }
+
+  res.json({
+    user: {
+      id: user.id,
+      studentCode: user.studentCode || user.id.replace('std_', ''),
+      displayName: user.displayName,
+      email: user.emailRaw,
+      role: member?.role || 'STUDENT',
+      groupId: member?.groupId || null,
+      groupName,
+    },
+  });
+});
+
+// ==========================================
 // 1. CLASSROOM ENDPOINTS
 // ==========================================
 
@@ -177,6 +237,8 @@ app.post(
         if (!userEntity) {
           userEntity = {
             id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            studentCode: row.studentId,
+            password: '0123456789',
             emailRaw: row.email,
             emailNormalized: row.emailNormalized,
             displayName: row.displayName || row.emailNormalized.split('@')[0],
@@ -981,25 +1043,56 @@ app.get('/', (req: Request, res: Response) => {
       <p class="subtitle">ระบบประเมินผลนักศึกษาแบบ Pairwise Comparison</p>
     </header>
 
-    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <label for="user-selector" style="font-weight: 600; font-size: 0.85rem; color: #334155;">สลับผู้ใช้งาน (Demo Switcher):</label>
-        <select id="user-selector" data-testid="user-selector" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #94a3b8; font-size: 0.85rem; font-weight: 600; background: white; cursor: pointer;">
-          <option value="std_67015155" selected>ไนท์ (std_67015155) — กลุ่ม Aurora</option>
-          <option value="std_alice">อลิซ (std_alice) — กลุ่ม Cosmos</option>
-          <option value="std_bob">บ็อบ (std_bob) — กลุ่ม Borealis</option>
-        </select>
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 0.85rem;">กลุ่มของคุณ: <strong id="evaluator-group-name">กลุ่ม Aurora (UX/UI Platform)</strong></span>
-        <button type="button" class="action-btn" id="revote-btn" style="display: none; padding: 4px 10px; font-size: 0.8rem; background: #e0f2fe; color: #0369a1; border-color: #7dd3fc;" title="ปลดล็อกเพื่อให้ผู้ใช้นี้แก้ไขคะแนนใหม่ได้ในโหมดทดสอบ">ประเมินใหม่ (Demo Re-vote)</button>
+    <!-- 1. LOGIN VIEW -->
+    <div class="card" id="login-view" style="max-width: 440px; margin: 30px auto; padding: 24px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; text-align: center;">เข้าสู่ระบบ PairEval</h2>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; text-align: center;">กรุณาใส่รหัสนักศึกษาและรหัสผ่านเพื่อเริ่มทำการประเมิน</p>
+      
+      <form id="login-form">
+        <div style="margin-bottom: 14px;">
+          <label for="login-username" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">รหัสนักศึกษา (Username):</label>
+          <input type="text" id="login-username" data-testid="login-username-input" placeholder="เช่น 67015155, 67015105, 67015167" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; box-sizing: border-box;" required>
+        </div>
+
+        <div style="margin-bottom: 18px;">
+          <label for="login-password" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">รหัสผ่าน (Password):</label>
+          <input type="password" id="login-password" data-testid="login-password-input" placeholder="0123456789" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; box-sizing: border-box;" required>
+        </div>
+
+        <div id="login-error" data-testid="login-error-msg" style="display: none; background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 16px;"></div>
+
+        <button type="submit" class="submit-btn" id="login-submit-btn" data-testid="login-submit-btn" style="width: 100%; padding: 12px; font-size: 0.95rem;">เข้าสู่ระบบ (Login)</button>
+      </form>
+
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border);">
+        <p style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px;">บัญชีนักศึกษาสำหรับทดสอบ (รหัสผ่านคือ 0123456789):</p>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <button type="button" class="action-btn quick-login-btn" data-username="67015155" style="font-size: 0.8rem; text-align: left; padding: 8px 12px;">
+            <strong>67015155</strong> — ไนท์ (กลุ่ม Aurora)
+          </button>
+          <button type="button" class="action-btn quick-login-btn" data-username="67015105" style="font-size: 0.8rem; text-align: left; padding: 8px 12px;">
+            <strong>67015105</strong> — นักศึกษา (กลุ่ม Borealis)
+          </button>
+          <button type="button" class="action-btn quick-login-btn" data-username="67015167" style="font-size: 0.8rem; text-align: left; padding: 8px 12px;">
+            <strong>67015167</strong> — นักศึกษา (กลุ่ม Cosmos)
+          </button>
+        </div>
       </div>
     </div>
 
-    <div class="nav-bar">
-      <span>ผู้ประเมิน: <strong id="evaluator-name">ไนท์ (std_67015155)</strong></span>
-      <span>บทบาท: <strong>STUDENT</strong></span>
-    </div>
+    <!-- 2. EVALUATION VIEW -->
+    <div id="eval-view" style="display: none;">
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: 0.9rem;">
+          <span>ผู้ประเมิน: <strong id="evaluator-name">-</strong></span>
+          <span>กลุ่มของคุณ: <strong id="evaluator-group-name" style="color: var(--primary);">-</strong></span>
+          <span>บทบาท: <strong>STUDENT</strong></span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="action-btn" id="revote-btn" style="display: none; padding: 6px 12px; font-size: 0.8rem; background: #e0f2fe; color: #0369a1; border-color: #7dd3fc;" title="ปลดล็อกเพื่อให้ผู้ใช้นี้แก้ไขคะแนนใหม่ได้ในโหมดทดสอบ">ประเมินใหม่ (Demo Re-vote)</button>
+          <button type="button" class="action-btn" id="logout-btn" data-testid="logout-btn" style="padding: 6px 12px; font-size: 0.8rem; background: #fee2e2; color: #991b1b; border-color: #fca5a5;">ออกจากระบบ (Logout)</button>
+        </div>
+      </div>
 
     <div class="card" data-testid="evaluation-card">
       <div class="progress-bar-container">
@@ -1078,6 +1171,7 @@ app.get('/', (req: Request, res: Response) => {
         <button type="button" class="action-btn" id="export-csv-btn">ดาวน์โหลดรายงาน CSV</button>
       </div>
       <div id="score-details" style="margin-top:12px; font-size:0.9rem; line-height: 1.6;"></div>
+      </div>
     </div>
   </div>
 
@@ -1086,20 +1180,45 @@ app.get('/', (req: Request, res: Response) => {
     let currentIndex = 0;
     let isSubmitted = false;
     const assignmentId = 'asg_demo';
-    let userId = 'std_67015155';
-
-    const userProfiles = {
-      'std_67015155': { name: 'ไนท์ (std_67015155)', group: 'กลุ่ม Aurora (UX/UI Platform)' },
-      'std_alice': { name: 'อลิซ (std_alice)', group: 'กลุ่ม Cosmos (AI Vision Guard)' },
-      'std_bob': { name: 'บ็อบ (std_bob)', group: 'กลุ่ม Borealis (IoT Smart Farm)' }
-    };
-
+    let currentUser = null;
     let criteriaMap = {};
 
+    function showLoginError(msg) {
+      const errEl = document.getElementById('login-error');
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+    }
+
+    function checkSession() {
+      const saved = sessionStorage.getItem('paireval_current_user');
+      if (saved) {
+        try {
+          currentUser = JSON.parse(saved);
+          enterEvalView();
+          return;
+        } catch (e) {
+          sessionStorage.removeItem('paireval_current_user');
+        }
+      }
+      document.getElementById('login-view').style.display = 'block';
+      document.getElementById('eval-view').style.display = 'none';
+    }
+
+    function enterEvalView() {
+      document.getElementById('login-view').style.display = 'none';
+      document.getElementById('eval-view').style.display = 'block';
+      document.getElementById('evaluator-name').textContent = currentUser.displayName || currentUser.studentCode;
+      document.getElementById('evaluator-group-name').textContent = currentUser.groupName || 'ไม่มีกลุ่ม';
+      currentIndex = 0;
+      document.getElementById('score-details').innerHTML = '';
+      loadData();
+    }
+
     async function loadData() {
+      if (!currentUser) return;
       try {
         const res = await fetch('/api/assignments/' + assignmentId + '/my-evaluations?side=GROUP', {
-          headers: { 'x-user-id': userId, 'x-user-role': 'STUDENT' }
+          headers: { 'x-user-id': currentUser.id, 'x-user-role': currentUser.role || 'STUDENT' }
         });
         if (res.ok) {
           const data = await res.json();
@@ -1193,7 +1312,7 @@ app.get('/', (req: Request, res: Response) => {
     let debounceTimer = null;
     document.querySelectorAll('input[name="pair_eval"]').forEach(r => {
       r.addEventListener('change', (e) => {
-        if (isSubmitted) return;
+        if (isSubmitted || !currentUser) return;
         const val = parseInt(e.target.value, 10);
         if (pairs[currentIndex]) {
           pairs[currentIndex].currentChoice = val;
@@ -1207,7 +1326,7 @@ app.get('/', (req: Request, res: Response) => {
               const pairId = pairs[currentIndex].pairAssignmentId;
               const res = await fetch('/api/comparisons/' + pairId, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+                headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.id },
                 body: JSON.stringify({ choice: val, timeOnTaskMs: 2500 })
               });
               if (res.ok) {
@@ -1229,21 +1348,12 @@ app.get('/', (req: Request, res: Response) => {
       if (currentIndex < pairs.length - 1) { currentIndex++; renderPair(); }
     });
 
-    document.getElementById('user-selector').addEventListener('change', (e) => {
-      userId = e.target.value;
-      const profile = userProfiles[userId] || { name: userId, group: '-' };
-      document.getElementById('evaluator-name').textContent = profile.name;
-      document.getElementById('evaluator-group-name').textContent = profile.group;
-      currentIndex = 0;
-      document.getElementById('score-details').innerHTML = '';
-      loadData();
-    });
-
     document.getElementById('revote-btn').addEventListener('click', () => {
       unlockInputs();
     });
 
     document.getElementById('submit-btn').addEventListener('click', async () => {
+      if (!currentUser) return;
       const answeredCount = pairs.filter(p => p.currentChoice !== null && p.currentChoice !== undefined).length;
       if (answeredCount < pairs.length) {
         alert('กรุณาทำการประเมินให้ครบทุกคู่ก่อนกดส่งผลการประเมิน (ยังเหลืออีก ' + (pairs.length - answeredCount) + ' คู่ที่ยังไม่ได้เลือก)');
@@ -1255,8 +1365,8 @@ app.get('/', (req: Request, res: Response) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-user-id': userId,
-            'Idempotency-Key': 'sub_' + userId + '_' + Date.now()
+            'x-user-id': currentUser.id,
+            'Idempotency-Key': 'sub_' + currentUser.id + '_' + Date.now()
           },
           body: JSON.stringify({ side: 'GROUP' })
         });
@@ -1273,9 +1383,10 @@ app.get('/', (req: Request, res: Response) => {
     });
 
     document.getElementById('view-score-btn').addEventListener('click', async () => {
+      if (!currentUser) return;
       try {
         const res = await fetch('/api/assignments/' + assignmentId + '/my-score', {
-          headers: { 'x-user-id': userId }
+          headers: { 'x-user-id': currentUser.id }
         });
         if (res.ok) {
           const data = await res.json();
@@ -1283,9 +1394,8 @@ app.get('/', (req: Request, res: Response) => {
           const groupScore = data.groupScore !== null && data.groupScore !== undefined ? data.groupScore.toFixed(3) : '9.000';
           const p = data.participationRatio !== undefined ? (data.participationRatio * 100).toFixed(0) : '100';
           const m = data.participationMultiplier !== undefined ? data.participationMultiplier : '1.0';
-          const profile = userProfiles[userId] || { name: userId, group: 'กลุ่มของคุณ' };
           detailsEl.innerHTML = '<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-top:8px;">' +
-            '<strong>สรุปคะแนนของ ' + profile.name + ' (' + profile.group + '):</strong><br>' +
+            '<strong>สรุปคะแนนของ ' + (currentUser.displayName || currentUser.studentCode) + ' (' + currentUser.groupName + '):</strong><br>' +
             '• คะแนนกลุ่ม (Group Score): <strong>' + groupScore + ' / 15.000</strong><br>' +
             '• การมีส่วนร่วมประเมิน (Participation p): <strong>' + p + '%</strong><br>' +
             '• ตัวคูณการประเมิน (Multiplier M): <strong>' + m + '</strong><br>' +
@@ -1302,13 +1412,14 @@ app.get('/', (req: Request, res: Response) => {
     });
 
     document.getElementById('export-csv-btn').addEventListener('click', async () => {
+      if (!currentUser) return;
       try {
         const res = await fetch('/api/assignments/' + assignmentId + '/exports', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-user-id': userId,
-            'x-user-role': 'STUDENT'
+            'x-user-id': currentUser.id,
+            'x-user-role': currentUser.role || 'STUDENT'
           },
           body: JSON.stringify({ report: 'group', includeIdentities: false })
         });
@@ -1331,7 +1442,55 @@ app.get('/', (req: Request, res: Response) => {
       }
     });
 
-    loadData();
+    // Login Form Submission
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value;
+      document.getElementById('login-error').style.display = 'none';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          currentUser = data.user;
+          sessionStorage.setItem('paireval_current_user', JSON.stringify(currentUser));
+          enterEvalView();
+        } else {
+          const err = await res.json();
+          showLoginError(err.error?.message || 'รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง');
+        }
+      } catch (e) {
+        showLoginError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      }
+    });
+
+    // Quick Login Buttons
+    document.querySelectorAll('.quick-login-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const u = e.currentTarget.getAttribute('data-username');
+        document.getElementById('login-username').value = u;
+        document.getElementById('login-password').value = '0123456789';
+        document.getElementById('login-submit-btn').click();
+      });
+    });
+
+    // Logout
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      sessionStorage.removeItem('paireval_current_user');
+      currentUser = null;
+      document.getElementById('login-username').value = '';
+      document.getElementById('login-password').value = '';
+      document.getElementById('login-error').style.display = 'none';
+      document.getElementById('login-view').style.display = 'block';
+      document.getElementById('eval-view').style.display = 'none';
+    });
+
+    checkSession();
   </script>
 </body>
 </html>`);
