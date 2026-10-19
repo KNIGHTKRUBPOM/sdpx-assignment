@@ -24,16 +24,20 @@ export function seedDemoData() {
   const grpAurora = { id: 'grp_aurora', classroomId, name: 'กลุ่ม Aurora (UX/UI Platform)', createdAt: new Date() };
   const grpBorealis = { id: 'grp_borealis', classroomId, name: 'กลุ่ม Borealis (IoT Smart Farm)', createdAt: new Date() };
   const grpCosmos = { id: 'grp_cosmos', classroomId, name: 'กลุ่ม Cosmos (AI Vision Guard)', createdAt: new Date() };
+  const grpNebula = { id: 'grp_nebula', classroomId, name: 'กลุ่ม Nebula (Blockchain Ledger)', createdAt: new Date() };
+
   memoryStore.groups.set(grpAurora.id, grpAurora);
   memoryStore.groups.set(grpBorealis.id, grpBorealis);
   memoryStore.groups.set(grpCosmos.id, grpCosmos);
+  memoryStore.groups.set(grpNebula.id, grpNebula);
 
   // 3. Users & Members
   const users = [
-    { id: 'std_nok', name: 'นก (Aurora)', email: 'nok@kmitl.ac.th', role: 'STUDENT' as const, grpId: grpAurora.id },
+    { id: 'std_67015155', name: 'ไนท์ (std_67015155)', email: '67015155@kmitl.ac.th', role: 'STUDENT' as const, grpId: grpAurora.id },
     { id: 'std_ton', name: 'ต้น (Aurora)', email: 'ton@kmitl.ac.th', role: 'STUDENT' as const, grpId: grpAurora.id },
     { id: 'std_bob', name: 'บ็อบ (Borealis)', email: 'bob@kmitl.ac.th', role: 'STUDENT' as const, grpId: grpBorealis.id },
     { id: 'std_alice', name: 'อลิซ (Cosmos)', email: 'alice@kmitl.ac.th', role: 'STUDENT' as const, grpId: grpCosmos.id },
+    { id: 'std_dave', name: 'เดฟ (Nebula)', email: 'dave@kmitl.ac.th', role: 'STUDENT' as const, grpId: grpNebula.id },
     { id: 'inst_somchai', name: 'อ.สมชาย (ผู้สอน)', email: 'somchai@kmitl.ac.th', role: 'OWNER' as const, grpId: null },
   ];
 
@@ -89,43 +93,139 @@ export function seedDemoData() {
     side: 'GROUP',
     name: 'User Experience & Accessibility (UX)',
     description: 'ความง่ายในการใช้งาน ความสวยงาม และการรองรับการเข้าถึง',
-    weightPct: 60,
+    weightPct: 50,
   });
   memoryStore.criteria.set(critCompId, {
     id: critCompId,
     side: 'GROUP',
     name: 'Completeness & Code Quality',
     description: 'ความครบถ้วนตามข้อกำหนดและความสะอาดของโค้ด',
-    weightPct: 40,
+    weightPct: 50,
   });
 
-  // 6. Generate Demo Pairs for student Nok (Aurora cannot evaluate Aurora, so Borealis vs Cosmos)
-  const pair1 = {
-    id: 'pa_demo_1',
+  // 6. Generate 5 Pairs for evaluator ไนท์ (std_67015155) - ไม่ประเมินกลุ่มตัวเอง (Aurora)
+  const evalPairs = [
+    {
+      id: 'pa_demo_1',
+      assignmentId,
+      criterionId: critUxId,
+      side: 'GROUP' as const,
+      itemAId: grpBorealis.id,
+      itemBId: grpCosmos.id,
+      evaluatorUserId: 'std_67015155',
+      displayLeftItemId: grpBorealis.id,
+      generation: 1,
+      source: 'AUTO' as const,
+      createdAt: new Date(),
+    },
+    {
+      id: 'pa_demo_2',
+      assignmentId,
+      criterionId: critUxId,
+      side: 'GROUP' as const,
+      itemAId: grpBorealis.id,
+      itemBId: grpNebula.id,
+      evaluatorUserId: 'std_67015155',
+      displayLeftItemId: grpNebula.id,
+      generation: 1,
+      source: 'AUTO' as const,
+      createdAt: new Date(),
+    },
+    {
+      id: 'pa_demo_3',
+      assignmentId,
+      criterionId: critUxId,
+      side: 'GROUP' as const,
+      itemAId: grpCosmos.id,
+      itemBId: grpNebula.id,
+      evaluatorUserId: 'std_67015155',
+      displayLeftItemId: grpCosmos.id,
+      generation: 1,
+      source: 'AUTO' as const,
+      createdAt: new Date(),
+    },
+    {
+      id: 'pa_demo_4',
+      assignmentId,
+      criterionId: critCompId,
+      side: 'GROUP' as const,
+      itemAId: grpBorealis.id,
+      itemBId: grpCosmos.id,
+      evaluatorUserId: 'std_67015155',
+      displayLeftItemId: grpCosmos.id,
+      generation: 1,
+      source: 'AUTO' as const,
+      createdAt: new Date(),
+    },
+    {
+      id: 'pa_demo_5',
+      assignmentId,
+      criterionId: critCompId,
+      side: 'GROUP' as const,
+      itemAId: grpCosmos.id,
+      itemBId: grpNebula.id,
+      evaluatorUserId: 'std_67015155',
+      displayLeftItemId: grpNebula.id,
+      generation: 1,
+      source: 'AUTO' as const,
+      createdAt: new Date(),
+    },
+  ];
+
+  for (const p of evalPairs) {
+    memoryStore.pairAssignments.set(p.id, p);
+  }
+
+  // 7. Seed evaluations where Aurora is evaluated by other peers & instructor
+  // Pair: Aurora vs Borealis (evaluated by Alice from Cosmos)
+  const paAurora1 = {
+    id: 'pa_ext_1',
     assignmentId,
     criterionId: critUxId,
     side: 'GROUP' as const,
-    itemAId: grpBorealis.id,
-    itemBId: grpCosmos.id,
-    evaluatorUserId: 'std_nok',
-    displayLeftItemId: grpBorealis.id,
+    itemAId: grpAurora.id,
+    itemBId: grpBorealis.id,
+    evaluatorUserId: 'std_alice',
+    displayLeftItemId: grpAurora.id,
     generation: 1,
     source: 'AUTO' as const,
     createdAt: new Date(),
   };
-  const pair2 = {
-    id: 'pa_demo_2',
+  memoryStore.pairAssignments.set(paAurora1.id, paAurora1);
+  memoryStore.comparisons.set('cmp_ext_1', {
+    id: 'cmp_ext_1',
+    pairAssignmentId: paAurora1.id,
+    evaluatorUserId: 'std_alice',
+    choice: 2, // Aurora ดีกว่า -> 0.8
+    status: 'SUBMITTED',
+    timeOnTaskMs: 4200,
+    savedAt: new Date(),
+    submittedAt: new Date(),
+  });
+
+  // Pair: Aurora vs Cosmos (evaluated by Bob from Borealis)
+  const paAurora2 = {
+    id: 'pa_ext_2',
     assignmentId,
     criterionId: critCompId,
     side: 'GROUP' as const,
-    itemAId: grpBorealis.id,
+    itemAId: grpAurora.id,
     itemBId: grpCosmos.id,
-    evaluatorUserId: 'std_nok',
-    displayLeftItemId: grpCosmos.id,
+    evaluatorUserId: 'std_bob',
+    displayLeftItemId: grpAurora.id,
     generation: 1,
     source: 'AUTO' as const,
     createdAt: new Date(),
   };
-  memoryStore.pairAssignments.set(pair1.id, pair1);
-  memoryStore.pairAssignments.set(pair2.id, pair2);
+  memoryStore.pairAssignments.set(paAurora2.id, paAurora2);
+  memoryStore.comparisons.set('cmp_ext_2', {
+    id: 'cmp_ext_2',
+    pairAssignmentId: paAurora2.id,
+    evaluatorUserId: 'std_bob',
+    choice: 1, // Aurora ดีกว่ามาก -> 1.0
+    status: 'SUBMITTED',
+    timeOnTaskMs: 5100,
+    savedAt: new Date(),
+    submittedAt: new Date(),
+  });
 }

@@ -879,6 +879,7 @@ app.get('/', (req: Request, res: Response) => {
     .radio-option input[type="radio"] { display: none; }
     .radio-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 48px; border: 2px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; font-weight: 700; }
     .radio-option input[type="radio"]:checked + .radio-btn { background: #eff6ff; border-color: var(--primary); color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
+    .radio-option input[type="radio"]:disabled + .radio-btn { opacity: 0.55; cursor: not-allowed; background: #e2e8f0; border-color: #cbd5e1; color: #64748b; }
     .label-guide { font-size: 0.75rem; color: var(--text-muted); margin-top: 12px; line-height: 1.4; border-top: 1px dashed var(--border); padding-top: 10px; }
     .status-alert { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
     .btn-row { display: flex; gap: 10px; margin-bottom: 12px; }
@@ -898,30 +899,30 @@ app.get('/', (req: Request, res: Response) => {
     </header>
 
     <div class="nav-bar">
-      <span>ผู้ประเมิน: <strong id="evaluator-name">นก (std_nok)</strong></span>
+      <span>ผู้ประเมิน: <strong id="evaluator-name">ไนท์ (std_67015155)</strong></span>
       <span>บทบาท: <strong>STUDENT</strong></span>
     </div>
 
     <div class="card" data-testid="evaluation-card">
       <div class="progress-bar-container">
         <span id="criterion-name">เกณฑ์: User Experience (UX)</span>
-        <span data-testid="progress-indicator" id="progress-indicator">1 / 2 ✓</span>
+        <span data-testid="progress-indicator" id="progress-indicator">1 / 5</span>
       </div>
 
       <div class="items-comparison">
         <div class="item-box">
-          <h3 data-testid="left-item-name" id="left-item-name">กลุ่ม Aurora</h3>
-          <a href="https://github.com/CE-SDPX" target="_blank" data-testid="left-artifact-link">ดูผลงาน ↗</a>
+          <h3 data-testid="left-item-name" id="left-item-name">กลุ่ม Borealis</h3>
+          <a href="https://github.com/CE-SDPX" target="_blank" data-testid="left-artifact-link">ดูผลงาน</a>
         </div>
         <div class="item-box">
-          <h3 data-testid="right-item-name" id="right-item-name">กลุ่ม Borealis</h3>
-          <a href="https://github.com/CE-SDPX" target="_blank" data-testid="right-artifact-link">ดูผลงาน ↗</a>
+          <h3 data-testid="right-item-name" id="right-item-name">กลุ่ม Cosmos</h3>
+          <a href="https://github.com/CE-SDPX" target="_blank" data-testid="right-artifact-link">ดูผลงาน</a>
         </div>
       </div>
 
       <div class="scale-legend">
-        <span>← ซ้ายดีกว่ามาก</span>
-        <span>ขวาดีกว่ามาก →</span>
+        <span>[ซ้ายดีกว่ามาก]</span>
+        <span>[ขวาดีกว่ามาก]</span>
       </div>
 
       <div role="radiogroup" aria-label="เลือกระดับความต่างระหว่างผลงาน" class="radio-group" data-testid="choice-radio-group">
@@ -953,18 +954,18 @@ app.get('/', (req: Request, res: Response) => {
 
       <div class="label-guide">
         <strong>คำอธิบายสเกล:</strong><br>
-        1 = ซ้ายดีกว่ามาก · 2 = ซ้ายดีกว่า · 3 = ซ้ายดีกว่าเล็กน้อย<br>
-        4 = ขวาดีกว่าเล็กน้อย · 5 = ขวาดีกว่า · 6 = ขวาดีกว่ามาก
+        1 = ซ้ายดีกว่ามาก | 2 = ซ้ายดีกว่า | 3 = ซ้ายดีกว่าเล็กน้อย<br>
+        4 = ขวาดีกว่าเล็กน้อย | 5 = ขวาดีกว่า | 6 = ขวาดีกว่ามาก
       </div>
     </div>
 
     <div class="status-alert" aria-live="polite" data-testid="autosave-status" id="autosave-status">
-      ✓ พร้อมทำการประเมิน
+      สถานะ: พร้อมทำการประเมิน
     </div>
 
     <div class="btn-row">
-      <button type="button" class="action-btn" id="prev-btn">← ก่อนหน้า</button>
-      <button type="button" class="action-btn" id="next-btn">ถัดไป →</button>
+      <button type="button" class="action-btn" id="prev-btn">ก่อนหน้า</button>
+      <button type="button" class="action-btn" id="next-btn">ถัดไป</button>
     </div>
 
     <button type="button" class="submit-btn" data-testid="submit-evaluations-btn" id="submit-btn">
@@ -972,21 +973,22 @@ app.get('/', (req: Request, res: Response) => {
     </button>
 
     <div class="result-panel" id="result-panel">
-      <h4>🎉 ส่งผลการประเมินสำเร็จ!</h4>
+      <h4>ส่งผลการประเมินสำเร็จ</h4>
       <p id="result-desc">ข้อมูลทั้งหมดถูกบันทึกเข้าระบบเรียบร้อยแล้ว</p>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
         <button type="button" class="action-btn" id="view-score-btn" style="background:#16a34a; color:white; border:none;">ดูคะแนนของฉัน (My Score)</button>
         <button type="button" class="action-btn" id="export-csv-btn">ดาวน์โหลดรายงาน CSV</button>
       </div>
-      <div id="score-details" style="margin-top:12px; font-size:0.9rem;"></div>
+      <div id="score-details" style="margin-top:12px; font-size:0.9rem; line-height: 1.6;"></div>
     </div>
   </div>
 
   <script>
     let pairs = [];
     let currentIndex = 0;
+    let isSubmitted = false;
     const assignmentId = 'asg_demo';
-    const userId = 'std_nok';
+    const userId = 'std_67015155';
 
     let criteriaMap = {};
 
@@ -1013,25 +1015,38 @@ app.get('/', (req: Request, res: Response) => {
     function renderPair() {
       if (!pairs || pairs.length === 0) return;
       const cur = pairs[currentIndex];
-      document.getElementById('progress-indicator').textContent = (currentIndex + 1) + ' / ' + pairs.length + ' ✓';
+      document.getElementById('progress-indicator').textContent = (currentIndex + 1) + ' / ' + pairs.length;
       document.getElementById('criterion-name').textContent = 'เกณฑ์: ' + (cur.criterionName || 'การประเมินกลุ่ม');
-      document.getElementById('left-item-name').textContent = cur.leftItem ? cur.leftItem.name : 'กลุ่ม Aurora';
-      document.getElementById('right-item-name').textContent = cur.rightItem ? cur.rightItem.name : 'กลุ่ม Borealis';
+      document.getElementById('left-item-name').textContent = cur.leftItem ? cur.leftItem.name : 'กลุ่ม Borealis';
+      document.getElementById('right-item-name').textContent = cur.rightItem ? cur.rightItem.name : 'กลุ่ม Cosmos';
       
       const radios = document.querySelectorAll('input[name="pair_eval"]');
       radios.forEach(r => {
         r.checked = (cur.currentChoice && String(cur.currentChoice) === r.value);
+        if (isSubmitted) {
+          r.disabled = true;
+        }
       });
+    }
+
+    function lockInputs() {
+      isSubmitted = true;
+      document.querySelectorAll('input[name="pair_eval"]').forEach(r => {
+        r.disabled = true;
+      });
+      document.getElementById('autosave-status').textContent = 'สถานะ: ส่งผลการประเมินแล้ว (ล็อกคำตอบ ไม่สามารถแก้ไขได้)';
+      document.getElementById('submit-btn').style.display = 'none';
     }
 
     let debounceTimer = null;
     document.querySelectorAll('input[name="pair_eval"]').forEach(r => {
       r.addEventListener('change', (e) => {
+        if (isSubmitted) return;
         const val = parseInt(e.target.value, 10);
         if (pairs[currentIndex]) {
           pairs[currentIndex].currentChoice = val;
           const statusEl = document.getElementById('autosave-status');
-          statusEl.textContent = '⏳ กำลังบันทึกฉบับร่าง...';
+          statusEl.textContent = 'สถานะ: กำลังบันทึกฉบับร่าง...';
           
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(async () => {
@@ -1044,10 +1059,10 @@ app.get('/', (req: Request, res: Response) => {
               });
               if (res.ok) {
                 const now = new Date();
-                statusEl.textContent = '✓ บันทึกฉบับร่างแล้ว เมื่อ ' + now.toLocaleTimeString('th-TH');
+                statusEl.textContent = 'สถานะ: บันทึกฉบับร่างแล้ว เมื่อ ' + now.toLocaleTimeString('th-TH');
               }
             } catch (err) {
-              statusEl.textContent = '⚠️ บันทึกไม่สำเร็จ';
+              statusEl.textContent = 'สถานะ: บันทึกไม่สำเร็จ';
             }
           }, 300);
         }
@@ -1075,8 +1090,8 @@ app.get('/', (req: Request, res: Response) => {
         if (res.ok) {
           const result = await res.json();
           document.getElementById('result-panel').style.display = 'block';
-          document.getElementById('result-desc').textContent = 'ส่งผลการประเมินจำนวน ' + (result.submittedCount || 2) + ' ข้อเรียบร้อยแล้ว';
-          document.getElementById('submit-btn').style.display = 'none';
+          document.getElementById('result-desc').textContent = 'ส่งผลการประเมินจำนวน ' + (result.submittedCount || pairs.length) + ' ข้อเรียบร้อยแล้ว';
+          lockInputs();
         }
       } catch (err) {
         alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
@@ -1091,11 +1106,20 @@ app.get('/', (req: Request, res: Response) => {
         if (res.ok) {
           const data = await res.json();
           const detailsEl = document.getElementById('score-details');
-          detailsEl.innerHTML = '<strong>สรุปคะแนนของคุณ:</strong><br>' +
-            '• คะแนนกลุ่ม (Group Score): <strong>' + (data.groupScore ? data.groupScore.toFixed(3) : '12.80') + ' / 15</strong><br>' +
-            '• อัตราการมีส่วนร่วม (Participation p): <strong>' + ((data.participationRatio || 1.0) * 100).toFixed(0) + '%</strong><br>' +
-            '• ตัวคูณ M: <strong>' + (data.participationMultiplier || 1.0) + '</strong><br>' +
-            '• สถานะ: <em>' + (data.isFinal ? 'คะแนนเป็นทางการ' : 'คะแนนชั่วคราวระหว่างทาง') + '</em>';
+          const groupScore = data.groupScore !== null && data.groupScore !== undefined ? data.groupScore.toFixed(3) : '9.000';
+          const p = data.participationRatio !== undefined ? (data.participationRatio * 100).toFixed(0) : '100';
+          const m = data.participationMultiplier !== undefined ? data.participationMultiplier : '1.0';
+          detailsEl.innerHTML = '<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-top:8px;">' +
+            '<strong>สรุปคะแนนของคุณ ไนท์ (std_67015155):</strong><br>' +
+            '• คะแนนกลุ่ม (Group Score): <strong>' + groupScore + ' / 15.000</strong><br>' +
+            '• การมีส่วนร่วมประเมิน (Participation p): <strong>' + p + '%</strong><br>' +
+            '• ตัวคูณการประเมิน (Multiplier M): <strong>' + m + '</strong><br>' +
+            '• สถานะคะแนน: <em>' + (data.isFinal ? 'คะแนนเป็นทางการ' : 'คะแนนชั่วคราวระหว่างทาง') + '</em><br><br>' +
+            '<small style="color:#64748b;"><strong>วิธีคิดคะแนนตาม PRD §9.3 & §9.4:</strong><br>' +
+            '1. กลุ่มที่ส่งงานได้ฐานคะแนน Floor 60% (15 × 0.60 = 9.000)<br>' +
+            '2. ส่วนที่เหลือ 40% คำนวณจากผลการเปรียบเทียบคู่ (Quality Index q)<br>' +
+            '3. คะแนนส่วนบุคคล = (คะแนนกลุ่ม + คะแนนเดี่ยว) × M โดยถ้าส่งครบ p ≥ 90% จะได้ M = 1.0 เต็ม ไม่ถูกหักคะแนน</small>' +
+            '</div>';
         }
       } catch (e) {
         console.error(e);
@@ -1103,7 +1127,33 @@ app.get('/', (req: Request, res: Response) => {
     });
 
     document.getElementById('export-csv-btn').addEventListener('click', async () => {
-      window.open('/api/assignments/' + assignmentId + '/audit', '_blank');
+      try {
+        const res = await fetch('/api/assignments/' + assignmentId + '/exports', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': userId,
+            'x-user-role': 'STUDENT'
+          },
+          body: JSON.stringify({ report: 'group', includeIdentities: false })
+        });
+        if (res.ok) {
+          const blob = await res.blob();
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = 'paireval_report_' + assignmentId + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(downloadUrl);
+        } else {
+          alert('ไม่สามารถดาวน์โหลดไฟล์ CSV ได้');
+        }
+      } catch (err) {
+        console.error('Download CSV error:', err);
+        alert('เกิดข้อผิดพลาดในการดาวน์โหลด CSV');
+      }
     });
 
     loadData();
