@@ -54,7 +54,9 @@ export async function handleRequest(
     else if (resource === "classrooms" && !entityId && method === "POST") {
       result = await service.createClassroom(ctx, await body());
       status = 201;
-    } else if (
+    } else if (resource === "classrooms" && action === "archive" && method === "POST")
+      result = await service.archiveClassroom(ctx, entityId, await body());
+    else if (
       resource === "classrooms" &&
       action === "roster" &&
       method === "GET"

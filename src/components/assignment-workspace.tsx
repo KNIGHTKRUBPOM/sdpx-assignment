@@ -19,6 +19,7 @@ interface Detail {
   };
   role: string;
   classroomName: string;
+  classroomArchived: boolean;
 }
 interface Evaluation {
   assignmentId: string;
@@ -213,7 +214,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
   const a = detail?.assignment,
     isStaff = detail && ["OWNER", "CO_TEACHER"].includes(detail.role),
     pair = evaluation?.comparisons[index];
-  const isOpen = a?.status === "OPEN";
+  const isOpen = a?.status === "OPEN" && !detail?.classroomArchived;
   return (
     <div className="shell">
       <Header />
@@ -269,6 +270,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
           ))}
         </div>
         <ErrorPopup error={error} onDismiss={() => setError("")} />
+        {detail?.classroomArchived && <div className="notice" data-testid="archived-notice"><strong>ห้องเรียนนี้เก็บถาวรแล้ว · อ่านอย่างเดียว</strong><p>ดูคำตอบและรายงานเดิมได้ แต่ไม่สามารถบันทึก ส่งประเมิน หรือแก้คะแนนได้</p></div>}
         <div
           className="alert-live"
           aria-live="polite"
@@ -306,7 +308,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
             </section>
             <section className="card">
               <h3>{isStaff ? "จัดการงานประเมิน" : "สถานะงาน"}</h3>
-              {isStaff && a?.status === "DRAFT" ? (
+              {isStaff && !detail?.classroomArchived && a?.status === "DRAFT" ? (
                 <div className="stack">
                   <button
                     className="button secondary"
@@ -354,7 +356,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
               ) : (
                 <p>{a ? statusLabel[a.status] : ""}</p>
               )}
-              {isStaff &&
+              {isStaff && !detail?.classroomArchived &&
                 a &&
                 ["OPEN", "PUBLISHED", "CLOSED"].includes(a.status) && (
                   <div className="stack">
@@ -787,7 +789,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
                 </div>
               </section>
             </div>
-            {detail.role === "OWNER" && a?.status === "FINALIZED" && (
+            {detail.role === "OWNER" && !detail.classroomArchived && a?.status === "FINALIZED" && (
               <form
                 className="card stack"
                 onSubmit={(e) => {

@@ -27,6 +27,7 @@ export const classrooms = pgTable("classrooms", {
   slug: text("slug").notNull(),
   domains: jsonb("domains").$type<string[]>().notNull(),
   timezone: text("timezone").notNull().default("Asia/Bangkok"),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

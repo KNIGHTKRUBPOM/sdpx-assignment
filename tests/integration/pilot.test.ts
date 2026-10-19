@@ -403,5 +403,44 @@ describe.sequential(
         }),
       ).rejects.toMatchObject({ status: 403 });
     });
+    it("archives only for the owner with a matching name and an audit reason", async () => {
+      const roster = await service.roster(ctx(owner), classroomId);
+      for (const user of [student, roster.members.find((m) => m.role === "CO_TEACHER")!])
+        await expect(service.archiveClassroom(ctx(user), classroomId, { name: "Pilot", reason: "End of term" })).rejects.toMatchObject({ status: 403 });
+      await expect(service.archiveClassroom(ctx(outsider), classroomId, { name: "Pilot", reason: "End of term" })).rejects.toMatchObject({ status: 404 });
+      await expect(service.archiveClassroom(ctx(owner), classroomId, { name: "Wrong", reason: "End of term" })).rejects.toMatchObject({ code: "NAME_MISMATCH" });
+      await expect(service.archiveClassroom(ctx(owner), classroomId, { name: "Pilot", reason: " " })).rejects.toBeDefined();
+      const before = (await db.select().from(t.assignments).where(eq(t.assignments.id, assignmentId)))[0];
+      const csv = await service.export(ctx(owner), assignmentId, { report: "individual" });
+      const archived = await service.archiveClassroom(ctx(owner), classroomId, { name: "Pilot", reason: "End of term" });
+      expect(archived.archivedAt).toBeInstanceOf(Date);
+      expect((await service.dashboard(ctx(owner))).classrooms).toHaveLength(0);
+      expect((await service.dashboard(ctx(owner))).archivedClassrooms.map((r) => r.classroom.id)).toContain(classroomId);
+      expect((await service.dashboard(ctx(student))).archivedClassrooms.map((r) => r.classroom.id)).toContain(classroomId);
+      expect((await service.dashboard(ctx(outsider))).archivedClassrooms).toHaveLength(0);
+      expect((await service.detail(ctx(student), assignmentId)).classroomArchived).toBe(true);
+      expect(await service.export(ctx(owner), assignmentId, { report: "individual" })).toBe(csv);
+      expect((await db.select().from(t.assignments).where(eq(t.assignments.id, assignmentId)))[0]).toEqual(before);
+      const events = await db.select().from(t.events).where(eq(t.events.classroomId, classroomId));
+      const event = events.find((e) => e.action === "ARCHIVE_CLASSROOM");
+      expect(event).toMatchObject({ actorId: owner.id, reason: "End of term", detail: { before: { archivedAt: null }, after: { archivedAt: archived.archivedAt.toISOString() } } });
+    });
+    it("rejects all later writes while preserving scoped read access", async () => {
+      const group = (await service.roster(ctx(owner), classroomId)).groups[0];
+      const mutations = [
+        () => service.archiveClassroom(ctx(owner), classroomId, { name: "Pilot", reason: "Again" }),
+        () => service.updateArtifact(ctx(owner), classroomId, group.id, { artifactUrl: "https://example.edu/changed" }),
+        () => service.addMember(ctx(owner), classroomId, { email: `late-${suffix}@example.edu`, role: "TA" }),
+        () => service.importRoster(ctx(owner), classroomId, `email,group_name\na-${suffix}@example.edu,New\nb-${suffix}@example.edu,New`),
+        () => service.save(ctx(student), pairId, { choice: 2, expectedVersion: 3 }),
+        () => service.submit(ctx(student), assignmentId, { side: "GROUP" }, "after-archive"),
+        () => service.close(ctx(owner), assignmentId, { reason: "After archive" }),
+        () => service.finalize(ctx(owner), assignmentId, { reason: "After archive" }),
+        () => service.override(ctx(owner), assignmentId, { studentId: student.id, value: 19, reason: "After archive" }),
+      ];
+      for (const mutate of mutations) await expect(mutate()).rejects.toMatchObject({ code: "CLASSROOM_ARCHIVED", status: 409 });
+      expect((await service.myScore(ctx(student), assignmentId)).label).toBeDefined();
+      await expect(service.detail(ctx(outsider), assignmentId)).rejects.toMatchObject({ status: 404 });
+    });
   },
 );

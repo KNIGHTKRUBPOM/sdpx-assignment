@@ -96,7 +96,8 @@ export class PairEvalService {
       await tx.execute(
         sql`select id from classrooms where id = ${classroomId} for update`,
       );
-      await this.membership(tx, ctx, classroomId);
+      const { classroom } = await this.membership(tx, ctx, classroomId);
+      requireRule(!classroom.archivedAt, "CLASSROOM_ARCHIVED", "ห้องเรียนนี้เก็บถาวรแล้ว อ่านข้อมูลได้ แต่ไม่สามารถแก้ไขหรือส่งประเมินได้", 409);
       return action(tx);
     });
   }
@@ -153,7 +154,8 @@ export class PairEvalService {
       canCreateClassroom: this.ownerEmails
         .map(safeEmail)
         .includes(ctx.user.email),
-      classrooms: visible,
+      classrooms: visible.filter((r) => !r.classroom.archivedAt),
+      archivedClassrooms: visible.filter((r) => !!r.classroom.archivedAt),
       assignments: work.map(({ snapshot: _snapshot, seed: _seed, ...a }) => ({
         ...a,
         status: effectiveStatus(a),
@@ -210,6 +212,18 @@ export class PairEvalService {
       });
       await this.audit(tx, ctx, room.id, "CREATE_CLASSROOM");
       return room;
+    });
+  }
+
+  async archiveClassroom(ctx: Context, classroomId: string, body: unknown) {
+    const v = z.object({ name: z.string(), reason: z.string().trim().min(3).max(1000) }).parse(body);
+    return this.mutate(ctx, classroomId, async (tx) => {
+      const { classroom } = await this.membership(tx, ctx, classroomId, ["OWNER"]);
+      requireRule(v.name === classroom.name, "NAME_MISMATCH", "กรุณาพิมพ์ชื่อห้องเรียนให้ตรงกัน");
+      const archivedAt = new Date();
+      await tx.update(t.classrooms).set({ archivedAt }).where(eq(t.classrooms.id, classroomId));
+      await this.audit(tx, ctx, classroomId, "ARCHIVE_CLASSROOM", undefined, v.reason, { before: { archivedAt: null }, after: { archivedAt: archivedAt.toISOString() } });
+      return { archivedAt };
     });
   }
 
@@ -635,6 +649,7 @@ export class PairEvalService {
       assignment: { ...publicAssignment, status: effectiveStatus(a) },
       role: member.role,
       classroomName: classroom.name,
+      classroomArchived: !!classroom.archivedAt,
     };
   }
 

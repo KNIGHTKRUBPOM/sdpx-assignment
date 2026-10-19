@@ -15,6 +15,13 @@
       "when": 1792038515761,
       "tag": "0001_pin_audit_function_search_path",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792421279408,
+      "tag": "0002_archive_classrooms",
+      "breakpoints": true
     }
   ]
 }

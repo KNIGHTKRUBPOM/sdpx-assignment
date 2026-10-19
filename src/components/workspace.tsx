@@ -5,10 +5,11 @@ import { signOut } from "next-auth/react";
 import { Header, Footer } from "./header";
 import { api, dateText, statusLabel, errorValue } from "./api";
 import { ErrorPopup } from "./error-popup";
+import { ArchiveDialog } from "./archive-dialog";
 import { Pending, LinkPending } from "./pending";
 
 interface Room {
-  classroom: { id: string; name: string; slug: string; domains: string[] };
+  classroom: { id: string; name: string; slug: string; domains: string[]; archivedAt: string | null };
   role: string;
 }
 interface Work {
@@ -23,6 +24,7 @@ interface Dashboard {
   noticeAccepted: boolean;
   canCreateClassroom: boolean;
   classrooms: Room[];
+  archivedClassrooms: Room[];
   assignments: Work[];
 }
 interface Roster {
@@ -43,11 +45,12 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
     [busy, setBusy] = useState(false);
   const [groupFilter, setGroupFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [archiving, setArchiving] = useState(false);
   const load = async () => {
     const dashboard = await api<Dashboard>("/dashboard");
     setData(dashboard);
     if (classroomId) {
-      const room = dashboard.classrooms.find(
+      const room = [...dashboard.classrooms, ...dashboard.archivedClassrooms].find(
         (r) => r.classroom.id === classroomId,
       );
       if (room?.role !== "STUDENT")
@@ -73,14 +76,15 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
       setBusy(false);
     }
   };
-  const room = data?.classrooms.find((r) => r.classroom.id === classroomId);
+  const room = data && [...data.classrooms, ...data.archivedClassrooms].find((r) => r.classroom.id === classroomId);
+  const archived = !!room?.classroom.archivedAt;
   const visibleMembers = roster?.members.filter((m) =>
     (!groupFilter || m.groupId === groupFilter) &&
     `${m.name} ${m.email}`.toLowerCase().includes(search.trim().toLowerCase()),
   ) ?? [];
   const work =
     data?.assignments.filter(
-      (a) => !classroomId || a.classroomId === classroomId,
+      (a) => classroomId ? a.classroomId === classroomId : data.classrooms.some((r) => r.classroom.id === a.classroomId),
     ) ?? [];
   const createRoom = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -132,6 +136,11 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
           <div className="summary-item"><span>{classroomId ? "กลุ่มในห้อง" : "งานประเมินทั้งหมด"}</span><strong>{classroomId ? (roster ? roster.groups.length : "—") : work.length}</strong></div>
         </section>}
         <ErrorPopup error={error} onDismiss={() => setError("")} />
+        {archived && <div className="notice" data-testid="archived-notice"><strong>ห้องเรียนนี้เก็บถาวรแล้ว · อ่านอย่างเดียว</strong><p>ดูงานและคะแนนเดิมได้ แต่ไม่สามารถแก้ไขหรือส่งประเมินเพิ่มได้</p></div>}
+        {archiving && room && <ArchiveDialog name={room.classroom.name} onCancel={() => setArchiving(false)} onConfirm={(reason) => {
+          setArchiving(false);
+          void act(() => api(`/classrooms/${classroomId}/archive`, "POST", { name: room.classroom.name, reason }), "เก็บห้องเรียนถาวรแล้ว ข้อมูลเดิมยังอยู่");
+        }} />}
         <div aria-live="polite" className="alert-live">
           {message}
         </div>
@@ -231,6 +240,9 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                 </form>
               </details>
             )}
+            {!!data?.archivedClassrooms.length && <details className="card" data-testid="archived-classrooms"><summary>ห้องเรียนที่เก็บถาวร ({data.archivedClassrooms.length})</summary>
+              <div className="stack">{data.archivedClassrooms.map((r) => <Link key={r.classroom.id} data-testid={`archived-room-${r.classroom.id}`} href={`/classrooms/${r.classroom.id}`} className="backlink">{r.classroom.name} · อ่านอย่างเดียว <LinkPending /></Link>)}</div>
+            </details>}
           </>
         )}
         <h2 className="section-title">
@@ -262,7 +274,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
             <p>งานที่อาจารย์สร้างจะแสดงที่นี่</p>
           </div>
         )}
-        {classroomId && room && ["OWNER", "CO_TEACHER"].includes(room.role) && (
+        {classroomId && room && !archived && ["OWNER", "CO_TEACHER"].includes(room.role) && (
           <details className="card">
             <summary>＋ สร้างงานประเมิน</summary>
             <AssignmentForm
@@ -338,14 +350,14 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                     <input
                       name="url"
                       data-testid={`artifact-url-${g.id}`}
-                      disabled={busy}
+                      disabled={busy || archived}
                       type="url"
                       defaultValue={g.artifactUrl}
                       required
                       placeholder="https://…"
                     />
                   </label>
-                  <button className="button secondary small" disabled={busy}>
+                  <button className="button secondary small" disabled={busy || archived}>
                     {busy ? "กำลังบันทึก…" : "บันทึกลิงก์"}
                   </button>
                   {g.artifactUrl && <a href={g.artifactUrl} target="_blank" rel="noopener noreferrer">เปิดผลงานที่บันทึกไว้ ↗</a>}
@@ -355,6 +367,10 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
             </section>
             <section>
               <h2 className="section-title">จัดการห้องเรียน</h2>
+              {room?.role === "OWNER" && !archived && <div className="card stack">
+                <h3>เก็บห้องเรียนที่ไม่ใช้แล้ว</h3><p>นำออกจากรายการหลักและหยุดการแก้ไขทุกงาน โดยยังเก็บคะแนนและประวัติไว้</p>
+                <button className="button secondary" data-testid="archive-classroom" disabled={busy} onClick={() => setArchiving(true)}>เก็บห้องเรียนถาวร</button>
+              </div>}
               <div className="card stack">
                 <h3>นำเข้ารายชื่อ CSV</h3>
                 <p>
@@ -367,7 +383,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                   <input
                     type="file"
                     accept=".csv,text/csv"
-                    disabled={busy}
+                    disabled={busy || archived}
                     data-testid="roster-upload"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
@@ -399,7 +415,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                   เพื่อรักษาความถูกต้องของคู่ประเมิน
                 </p>
               </div>
-              {room?.role === "OWNER" && (
+              {room?.role === "OWNER" && !archived && (
                 <form
                   className="card stack"
                   onSubmit={(e) => {
