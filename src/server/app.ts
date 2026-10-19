@@ -811,19 +811,100 @@ app.post('/api/assignments/:id/exports', (req: Request, res: Response) => {
     });
   }
 
-  const headers = ['Evaluator_ID', 'Pair_ID', 'Choice', 'Status'];
-  const rows = Array.from(memoryStore.comparisons.values()).map((c) => {
-    const evalId = includeIdentities
-      ? c.evaluatorUserId
-      : generateEvaluatorPseudonym(c.evaluatorUserId, assignment.id);
-    return [evalId, c.pairAssignmentId, c.choice, c.status];
-  });
+  let headers: string[] = [];
+  let rows: (string | number)[][] = [];
+
+  const reportType = report || 'group';
+
+  if (reportType === 'raw-comparisons' || reportType === 'raw') {
+    headers = ['Evaluator_ID', 'Pair_ID', 'Choice', 'Status'];
+    rows = Array.from(memoryStore.comparisons.values()).map((c) => {
+      const evalId = includeIdentities
+        ? c.evaluatorUserId
+        : generateEvaluatorPseudonym(c.evaluatorUserId, assignment.id);
+      return [evalId, c.pairAssignmentId, c.choice, c.status];
+    });
+  } else {
+    // Default: Group Summary Report (FR-REPORT-01, FR-EXPORT-01)
+    headers = [
+      'รหัสกลุ่ม (Group_ID)',
+      'ชื่อกลุ่ม (Group_Name)',
+      'เกณฑ์การประเมิน (Criterion)',
+      'ดัชนีคุณภาพ q (Quality_Index)',
+      'จำนวนครั้งที่ประเมิน (Comparison_Count)',
+      'คะแนนเกณฑ์นี้ (Criterion_Score)',
+      'คะแนนกลุ่มรวม (Total_Group_Score)',
+      'สถานะ (Status)',
+    ];
+
+    const submittedCmps: SubmittedComparison[] = Array.from(memoryStore.comparisons.values())
+      .filter((c) => c.status === 'SUBMITTED')
+      .map((c) => {
+        const pa = memoryStore.pairAssignments.get(c.pairAssignmentId)!;
+        const rightId = pa.displayLeftItemId === pa.itemAId ? pa.itemBId : pa.itemAId;
+        return {
+          id: c.id,
+          pairAssignmentId: c.pairAssignmentId,
+          evaluatorUserId: c.evaluatorUserId,
+          isInstructor: false,
+          itemLeftId: pa.displayLeftItemId,
+          itemRightId: rightId,
+          choice: c.choice,
+          status: 'SUBMITTED',
+          timeOnTaskMs: c.timeOnTaskMs,
+        };
+      });
+
+    const allCriteria = Array.from(memoryStore.criteria.values());
+    const classroomGroups = Array.from(memoryStore.groups.values()).filter(
+      (g) => g.classroomId === assignment.classroomId,
+    );
+
+    for (const grp of classroomGroups) {
+      const scoreSummary = computeItemScores(
+        grp.id,
+        'GROUP',
+        allCriteria,
+        submittedCmps,
+        {
+          floor: assignment.scoreFloor,
+          ceiling: assignment.scoreCeiling,
+          instructorWeight: assignment.instructorWeight,
+          minComparisons: assignment.minComparisons,
+          completionThreshold: assignment.completionThreshold,
+          groupMaxScore: assignment.groupMaxScore,
+          individualMaxScore: assignment.individualMaxScore,
+        },
+      );
+
+      const totalScoreStr = `${scoreSummary.totalComponentScore.toFixed(3)} / ${assignment.groupMaxScore.toFixed(3)}`;
+
+      for (const crit of allCriteria.filter((c) => c.side === 'GROUP')) {
+        const cs = scoreSummary.criterionScores[crit.id];
+        const qVal = cs ? cs.qualityIndex.toFixed(3) : '0.000';
+        const cmpCount = cs ? cs.comparisonCount : 0;
+        const critScore = cs ? cs.weightedScore.toFixed(3) : '0.000';
+        const flagsStr = (scoreSummary.flags || []).join('; ') || 'NORMAL';
+
+        rows.push([
+          grp.id,
+          grp.name,
+          crit.name,
+          qVal,
+          cmpCount,
+          critScore,
+          totalScoreStr,
+          flagsStr,
+        ]);
+      }
+    }
+  }
 
   const csv = exportToCsvString(headers, rows);
   const filename = formatExportFilename(
     classroom?.slug || 'class',
     assignment.slug,
-    report || 'raw',
+    reportType,
   );
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
