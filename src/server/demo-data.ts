@@ -33,17 +33,49 @@ export function seedDemoData() {
 
   // 3. Users & Members
   const users = [
-    { id: 'std_67015155', name: 'ไนท์ (std_67015155)', email: '67015155@kmitl.ac.th', role: 'STUDENT' as const, grpId: grpAurora.id },
-    { id: 'std_ton', name: 'ต้น (Aurora)', email: 'ton@kmitl.ac.th', role: 'STUDENT' as const, grpId: grpAurora.id },
-    { id: 'std_bob', name: 'บ็อบ (Borealis)', email: 'bob@kmitl.ac.th', role: 'STUDENT' as const, grpId: grpBorealis.id },
-    { id: 'std_alice', name: 'อลิซ (Cosmos)', email: 'alice@kmitl.ac.th', role: 'STUDENT' as const, grpId: grpCosmos.id },
-    { id: 'std_dave', name: 'เดฟ (Nebula)', email: 'dave@kmitl.ac.th', role: 'STUDENT' as const, grpId: grpNebula.id },
-    { id: 'inst_somchai', name: 'อ.สมชาย (ผู้สอน)', email: 'somchai@kmitl.ac.th', role: 'OWNER' as const, grpId: null },
+    {
+      id: 'std_67015155',
+      studentCode: '67015155',
+      name: 'ไนท์ (Std_67015155)',
+      email: '67015155@kmitl.ac.th',
+      password: '0123456789',
+      role: 'STUDENT' as const,
+      grpId: grpAurora.id,
+    },
+    {
+      id: 'std_67015105',
+      studentCode: '67015105',
+      name: 'นักศึกษา (Std_67015105)',
+      email: '67015105@kmitl.ac.th',
+      password: '0123456789',
+      role: 'STUDENT' as const,
+      grpId: grpBorealis.id,
+    },
+    {
+      id: 'std_67015167',
+      studentCode: '67015167',
+      name: 'นักศึกษา (Std_67015167)',
+      email: '67015167@kmitl.ac.th',
+      password: '0123456789',
+      role: 'STUDENT' as const,
+      grpId: grpCosmos.id,
+    },
+    {
+      id: 'inst_somchai',
+      studentCode: 'somchai',
+      name: 'อ.สมชาย (ผู้สอน)',
+      email: 'somchai@kmitl.ac.th',
+      password: '0123456789',
+      role: 'OWNER' as const,
+      grpId: null,
+    },
   ];
 
   for (const u of users) {
     memoryStore.users.set(u.id, {
       id: u.id,
+      studentCode: u.studentCode,
+      password: u.password,
       emailRaw: u.email,
       emailNormalized: u.email.toLowerCase(),
       displayName: u.name,
@@ -176,100 +208,102 @@ export function seedDemoData() {
     memoryStore.pairAssignments.set(p.id, p);
   }
 
-  // 7. Seed evaluations where Aurora is evaluated by peers (Alice from Cosmos, Bob from Borealis)
-  const paAlice1 = {
-    id: 'pa_alice_1',
+  // 7. Seed evaluations where Aurora is evaluated by peers:
+  // - std_67015167 (from Cosmos)
+  // - std_67015105 (from Borealis)
+  const pa167_1 = {
+    id: 'pa_167_1',
     assignmentId,
     criterionId: critUxId,
     side: 'GROUP' as const,
     itemAId: grpAurora.id,
     itemBId: grpBorealis.id,
-    evaluatorUserId: 'std_alice',
+    evaluatorUserId: 'std_67015167',
     displayLeftItemId: grpAurora.id,
     generation: 1,
     source: 'AUTO' as const,
     createdAt: new Date(),
   };
-  const paAlice2 = {
-    id: 'pa_alice_2',
+  const pa167_2 = {
+    id: 'pa_167_2',
     assignmentId,
     criterionId: critCompId,
     side: 'GROUP' as const,
     itemAId: grpAurora.id,
     itemBId: grpNebula.id,
-    evaluatorUserId: 'std_alice',
+    evaluatorUserId: 'std_67015167',
     displayLeftItemId: grpAurora.id,
     generation: 1,
     source: 'AUTO' as const,
     createdAt: new Date(),
   };
-  const paBob1 = {
-    id: 'pa_bob_1',
+  const pa105_1 = {
+    id: 'pa_105_1',
     assignmentId,
     criterionId: critUxId,
     side: 'GROUP' as const,
     itemAId: grpAurora.id,
     itemBId: grpCosmos.id,
-    evaluatorUserId: 'std_bob',
+    evaluatorUserId: 'std_67015105',
     displayLeftItemId: grpAurora.id,
     generation: 1,
     source: 'AUTO' as const,
     createdAt: new Date(),
   };
-  const paBob2 = {
-    id: 'pa_bob_2',
+  const pa105_2 = {
+    id: 'pa_105_2',
     assignmentId,
     criterionId: critCompId,
     side: 'GROUP' as const,
     itemAId: grpAurora.id,
     itemBId: grpCosmos.id,
-    evaluatorUserId: 'std_bob',
+    evaluatorUserId: 'std_67015105',
     displayLeftItemId: grpAurora.id,
     generation: 1,
     source: 'AUTO' as const,
     createdAt: new Date(),
   };
 
-  memoryStore.pairAssignments.set(paAlice1.id, paAlice1);
-  memoryStore.pairAssignments.set(paAlice2.id, paAlice2);
-  memoryStore.pairAssignments.set(paBob1.id, paBob1);
-  memoryStore.pairAssignments.set(paBob2.id, paBob2);
+  memoryStore.pairAssignments.set(pa167_1.id, pa167_1);
+  memoryStore.pairAssignments.set(pa167_2.id, pa167_2);
+  memoryStore.pairAssignments.set(pa105_1.id, pa105_1);
+  memoryStore.pairAssignments.set(pa105_2.id, pa105_2);
 
-  // Initial comparisons: Alice gave 2 (0.8), Bob gave 1 (1.0)
-  memoryStore.comparisons.set('cmp_alice_1', {
-    id: 'cmp_alice_1',
-    pairAssignmentId: paAlice1.id,
-    evaluatorUserId: 'std_alice',
+  // Initial comparisons: 67015167 gave 2 (0.8), 67015105 gave 1 (1.0)
+  memoryStore.comparisons.set('cmp_167_1', {
+    id: 'cmp_167_1',
+    pairAssignmentId: pa167_1.id,
+    evaluatorUserId: 'std_67015167',
     choice: 2,
     status: 'SUBMITTED',
     timeOnTaskMs: 4200,
     savedAt: new Date(),
     submittedAt: new Date(),
   });
-  memoryStore.comparisons.set('cmp_alice_2', {
-    id: 'cmp_alice_2',
-    pairAssignmentId: paAlice2.id,
-    evaluatorUserId: 'std_alice',
+  memoryStore.comparisons.set('cmp_167_2', {
+    id: 'cmp_167_2',
+    pairAssignmentId: pa167_2.id,
+    evaluatorUserId: 'std_67015167',
     choice: 2,
     status: 'SUBMITTED',
     timeOnTaskMs: 3800,
     savedAt: new Date(),
     submittedAt: new Date(),
   });
-  memoryStore.comparisons.set('cmp_bob_1', {
-    id: 'cmp_bob_1',
-    pairAssignmentId: paBob1.id,
-    evaluatorUserId: 'std_bob',
+  memoryStore.comparisons.set('cmp_105_1', {
+    id: 'cmp_105_1',
+    pairAssignmentId: pa105_1.id,
+    evaluatorUserId: 'std_67015105',
     choice: 1,
     status: 'SUBMITTED',
     timeOnTaskMs: 5100,
     savedAt: new Date(),
     submittedAt: new Date(),
   });
-  memoryStore.comparisons.set('cmp_bob_2', {
-    id: 'cmp_bob_2',
-    pairAssignmentId: paBob2.id,
-    evaluatorUserId: 'std_bob',
+  memoryStore.comparisons.set('cmp_105_2', {
+    id: 'cmp_105_2',
+    pairAssignmentId: pa105_2.id,
+    evaluatorUserId: 'std_67015105',
     choice: 1,
     status: 'SUBMITTED',
     timeOnTaskMs: 4600,

@@ -239,6 +239,28 @@ charlie@uni.ac.th,Group Cygnus,6509,Charlie`;
     expect(res.text).toContain('data-testid="evaluation-card"');
     expect(res.text).toContain('data-testid="choice-radio-group"');
     expect(res.text).toContain('data-testid="submit-evaluations-btn"');
+    expect(res.text).toContain('data-testid="login-username-input"');
+    expect(res.text).toContain('data-testid="login-password-input"');
+    expect(res.text).toContain('data-testid="login-submit-btn"');
+    expect(res.text).toContain('data-testid="logout-btn"');
     expect(res.text).toContain('role="radiogroup"');
+  });
+
+  it('Step 15: Authenticates student via POST /api/auth/login with student code and password (FR-AUTHZ-01)', async () => {
+    // 1. Successful student login
+    const loginRes = await request('POST', '/api/auth/login', {
+      body: { username: '6501', password: '0123456789' },
+    });
+    expect(loginRes.status).toBe(200);
+    expect(loginRes.body.user).toBeDefined();
+    expect(loginRes.body.user.displayName).toBe('Nok');
+    expect(loginRes.body.user.groupName).toBe('Group Aurora');
+
+    // 2. Invalid password
+    const failRes = await request('POST', '/api/auth/login', {
+      body: { username: '6501', password: 'wrongpassword' },
+    });
+    expect(failRes.status).toBe(401);
+    expect(failRes.body.error.code).toBe('INVALID_CREDENTIALS');
   });
 });
