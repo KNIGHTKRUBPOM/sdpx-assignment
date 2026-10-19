@@ -968,6 +968,7 @@ app.get('/', (req: Request, res: Response) => {
     .action-btn:hover { background: #f1f5f9; }
     .submit-btn { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     .submit-btn:hover { background: var(--primary-hover); }
+    .submit-btn:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
     .result-panel { display: none; background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px; padding: 16px; margin-top: 16px; }
     .result-panel h4 { color: var(--success); margin-bottom: 8px; }
   </style>
@@ -987,7 +988,7 @@ app.get('/', (req: Request, res: Response) => {
     <div class="card" data-testid="evaluation-card">
       <div class="progress-bar-container">
         <span id="criterion-name">เกณฑ์: User Experience (UX)</span>
-        <span data-testid="progress-indicator" id="progress-indicator">1 / 5</span>
+        <span data-testid="progress-indicator" id="progress-indicator">ประเมินแล้ว 0 / 5 คู่</span>
       </div>
 
       <div class="items-comparison">
@@ -1041,7 +1042,7 @@ app.get('/', (req: Request, res: Response) => {
     </div>
 
     <div class="status-alert" aria-live="polite" data-testid="autosave-status" id="autosave-status">
-      สถานะ: พร้อมทำการประเมิน
+      สถานะ: ยังไม่ได้เลือกคำตอบสำหรับคู่นี้ (กรุณาเลือก 1-6)
     </div>
 
     <div class="btn-row">
@@ -1049,8 +1050,8 @@ app.get('/', (req: Request, res: Response) => {
       <button type="button" class="action-btn" id="next-btn">ถัดไป</button>
     </div>
 
-    <button type="button" class="submit-btn" data-testid="submit-evaluations-btn" id="submit-btn">
-      ส่งผลการประเมิน (Submit)
+    <button type="button" class="submit-btn" data-testid="submit-evaluations-btn" id="submit-btn" disabled>
+      ส่งผลการประเมิน (ยังประเมินไม่ครบ)
     </button>
 
     <div class="result-panel" id="result-panel">
@@ -1093,21 +1094,48 @@ app.get('/', (req: Request, res: Response) => {
       }
     }
 
+    function updateProgressAndSubmitState() {
+      if (!pairs || pairs.length === 0) return;
+      const answeredCount = pairs.filter(p => p.currentChoice !== null && p.currentChoice !== undefined).length;
+      const isComplete = answeredCount === pairs.length;
+
+      document.getElementById('progress-indicator').textContent = 'ประเมินแล้ว ' + answeredCount + ' / ' + pairs.length + ' คู่ (ข้อที่ ' + (currentIndex + 1) + ')';
+
+      const submitBtn = document.getElementById('submit-btn');
+      if (isSubmitted) {
+        submitBtn.style.display = 'none';
+      } else if (!isComplete) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'ส่งผลการประเมิน (ยังประเมินไม่ครบ: ขาดอีก ' + (pairs.length - answeredCount) + ' คู่)';
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'ส่งผลการประเมิน (Submit)';
+      }
+    }
+
     function renderPair() {
       if (!pairs || pairs.length === 0) return;
       const cur = pairs[currentIndex];
-      document.getElementById('progress-indicator').textContent = (currentIndex + 1) + ' / ' + pairs.length;
       document.getElementById('criterion-name').textContent = 'เกณฑ์: ' + (cur.criterionName || 'การประเมินกลุ่ม');
       document.getElementById('left-item-name').textContent = cur.leftItem ? cur.leftItem.name : 'กลุ่ม Borealis';
       document.getElementById('right-item-name').textContent = cur.rightItem ? cur.rightItem.name : 'กลุ่ม Cosmos';
       
       const radios = document.querySelectorAll('input[name="pair_eval"]');
       radios.forEach(r => {
-        r.checked = (cur.currentChoice && String(cur.currentChoice) === r.value);
-        if (isSubmitted) {
-          r.disabled = true;
-        }
+        r.checked = (cur.currentChoice && String(cur.currentChoice) === r.value) ? true : false;
+        r.disabled = isSubmitted ? true : false;
       });
+
+      const statusEl = document.getElementById('autosave-status');
+      if (isSubmitted) {
+        statusEl.textContent = 'สถานะ: ส่งผลการประเมินแล้ว (ล็อกคำตอบ ไม่สามารถแก้ไขได้)';
+      } else if (cur.currentChoice) {
+        statusEl.textContent = 'สถานะ: บันทึกฉบับร่างของคู่นี้แล้ว (เลือกเบอร์ ' + cur.currentChoice + ')';
+      } else {
+        statusEl.textContent = 'สถานะ: ยังไม่ได้เลือกคำตอบสำหรับคู่นี้ (กรุณาเลือก 1-6)';
+      }
+
+      updateProgressAndSubmitState();
     }
 
     function lockInputs() {
@@ -1126,6 +1154,7 @@ app.get('/', (req: Request, res: Response) => {
         const val = parseInt(e.target.value, 10);
         if (pairs[currentIndex]) {
           pairs[currentIndex].currentChoice = val;
+          updateProgressAndSubmitState();
           const statusEl = document.getElementById('autosave-status');
           statusEl.textContent = 'สถานะ: กำลังบันทึกฉบับร่าง...';
           
@@ -1158,6 +1187,12 @@ app.get('/', (req: Request, res: Response) => {
     });
 
     document.getElementById('submit-btn').addEventListener('click', async () => {
+      const answeredCount = pairs.filter(p => p.currentChoice !== null && p.currentChoice !== undefined).length;
+      if (answeredCount < pairs.length) {
+        alert('กรุณาทำการประเมินให้ครบทุกคู่ก่อนกดส่งผลการประเมิน (ยังเหลืออีก ' + (pairs.length - answeredCount) + ' คู่ที่ยังไม่ได้เลือก)');
+        return;
+      }
+
       try {
         const res = await fetch('/api/assignments/' + assignmentId + '/submissions', {
           method: 'POST',
