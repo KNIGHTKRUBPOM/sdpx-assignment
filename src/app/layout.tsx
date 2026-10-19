@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./design.css";
+import Link from "next/link";
+import { demoEnabled } from "../demo/config";
 export const metadata: Metadata = {
   title: "PairEval · ประเมินอย่างมีเหตุผล",
   description: "ระบบประเมินผลงานกลุ่มและการมีส่วนร่วมด้วยการเปรียบเทียบเป็นคู่",
@@ -10,7 +12,12 @@ export default function Layout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="th">
-      <body>{children}</body>
+      <body>
+        {demoEnabled() && <aside className="shell notice" data-testid="demo-banner" aria-label="โหมดสาธิต" style={{ marginTop: 16 }}>
+          <div className="row" style={{ justifyContent: "space-between" }}><strong>DEMO · ข้อมูลสมมติ ไม่ใช่คะแนนจริง</strong><Link href="/login" className="button secondary small" data-testid="demo-switch">สลับบัญชี</Link></div>
+        </aside>}
+        {children}
+      </body>
     </html>
   );
 }

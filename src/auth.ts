@@ -1,16 +1,27 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { and, eq, isNull, or } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { database } from "./db/client";
 import { users } from "./db/schema";
 import { safeEmail } from "./domain/policy";
+import { demoAccounts, demoEnabled } from "./demo/config";
+
+const localDemo = demoEnabled();
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt", maxAge: 8 * 60 * 60 },
   pages: { signIn: "/login", error: "/login" },
-  providers: [
+  providers: localDemo ? [CredentialsProvider({
+    id: "demo", name: "บัญชีสาธิต", credentials: { email: { label: "บัญชีสาธิต", type: "text" } },
+    async authorize(credentials) {
+      if (!demoEnabled() || !demoAccounts.some((a) => a.email === credentials?.email)) return null;
+      const [user] = await database().select().from(users).where(eq(users.email, credentials!.email));
+      return user && !user.googleSubject ? { id: user.id, email: user.email, name: user.name } : null;
+    },
+  })] : [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
@@ -18,6 +29,7 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ profile, account }) {
+      if (account?.provider === "demo") return demoEnabled();
       const google = profile as
         | {
             email?: string;
@@ -68,7 +80,12 @@ export const authOptions: NextAuthOptions = {
         });
       return true;
     },
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account, profile, user }) {
+      if (account?.provider === "demo") {
+        if (!demoEnabled() || !user?.email || !demoAccounts.some((a) => a.email === user.email)) return {};
+        return { ...token, userId: user.id, email: user.email, name: user.name, localDemo: true };
+      }
+      if (token.localDemo && !demoEnabled()) return {};
       if (account && profile?.email) {
         const [user] = await database()
           .select()

@@ -1,8 +1,10 @@
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
+import { demoEnabled } from "../demo/config";
 
 export function connectDatabase(url: string) {
+  if (process.env.DEMO_MODE === "true") demoEnabled({ ...process.env, DATABASE_URL: url });
   const client = postgres(url, {
     max: 3,
     prepare: false,

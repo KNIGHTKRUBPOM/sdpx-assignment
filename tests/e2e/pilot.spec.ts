@@ -17,6 +17,8 @@ test("WS04 smoke: landing, login and protected routes", async ({ page }, testInf
   await page.screenshot({ path: testInfo.outputPath("landing-mobile.png"), fullPage: true });
   await page.getByTestId("login-cta").click();
   await expect(page.getByTestId("google-login")).toBeVisible();
+  await expect(page.getByTestId("demo-login")).toHaveCount(0);
+  expect((await (await page.request.get("/api/auth/providers")).json()).demo).toBeUndefined();
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login/);
 });

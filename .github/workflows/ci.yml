@@ -37,6 +37,8 @@ jobs:
       - run: npx tsx scripts/test-database.ts e2e --repeat-each=3
       - name: Performance gate (30 concurrent users, isolated PostgreSQL)
         run: npx tsx scripts/test-database.ts perf
+      - name: Isolated demo login and full classroom lifecycle
+        run: npm run test:demo
       - uses: actions/upload-artifact@v7
         if: always()
         with:

@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --webpack",
+    "demo": "tsx scripts/demo.ts",
+    "test:demo": "tsx scripts/demo.ts --test",
     "build": "next build --webpack",
     "start": "next start",
     "test": "vitest run",

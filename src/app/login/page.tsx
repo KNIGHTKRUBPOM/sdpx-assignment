@@ -1,5 +1,7 @@
 import { Header, Footer } from "../../components/header";
 import { GoogleLogin } from "../../components/google-login";
+import { DemoLogin } from "../../components/demo-login";
+import { demoAccounts, demoEnabled } from "../../demo/config";
 export const dynamic = "force-dynamic";
 export default async function Login({
   searchParams,
@@ -7,6 +9,7 @@ export default async function Login({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+  const demo = demoEnabled();
   const configured = !!(
     process.env.GOOGLE_CLIENT_ID &&
     process.env.GOOGLE_CLIENT_SECRET &&
@@ -19,10 +22,9 @@ export default async function Login({
       <main className="login-wrap">
         <span className="eyebrow">WELCOME TO PAIREVAL</span>
         <div className="card">
-          <h1>เข้าสู่ห้องเรียนของคุณ</h1>
+          <h1>{demo ? "ลองใช้งาน PairEval" : "เข้าสู่ห้องเรียนของคุณ"}</h1>
           <p>
-            ใช้บัญชี Google ที่อาจารย์เพิ่มไว้ในรายชื่อห้องเรียน
-            ระบบจะแสดงงานตามสิทธิ์ของคุณ
+            {demo ? "เลือกอาจารย์หรือนักศึกษาสาธิตเพื่อทดลองประเมิน สลับบัญชีได้โดยไม่ต้องใช้ Google หรือรหัสผ่าน" : "ใช้บัญชี Google ที่อาจารย์เพิ่มไว้ในรายชื่อห้องเรียน ระบบจะแสดงงานตามสิทธิ์ของคุณ"}
           </p>
           {error && (
             <div className="error" role="alert">
@@ -30,11 +32,10 @@ export default async function Login({
               หรือบัญชี Google Workspace ของมหาวิทยาลัย
             </div>
           )}
-          <GoogleLogin configured={configured} />
+          {demo ? <DemoLogin accounts={demoAccounts} /> : <GoogleLogin configured={configured} />}
           <hr />
           <p className="muted">
-            เราไม่เก็บรหัสผ่าน Google ของคุณ
-            และนักศึกษาคนอื่นจะไม่เห็นว่าใครเป็นผู้ประเมิน
+            {demo ? "ใช้ข้อมูลสมมติทั้งหมด คำตอบจะเกิดขึ้นเมื่อผู้ทดสอบเลือกและกดส่งเอง เริ่มใหม่ได้เมื่อเปิด Demo รอบใหม่" : "เราไม่เก็บรหัสผ่าน Google ของคุณ และนักศึกษาคนอื่นจะไม่เห็นว่าใครเป็นผู้ประเมิน"}
           </p>
           <a
             className="muted"

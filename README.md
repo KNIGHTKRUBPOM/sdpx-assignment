@@ -29,6 +29,8 @@ CLI scripts อ่าน environment ของ shell; ถ้าเก็บใ�
 
 ## การทดสอบ
 
+ลองใช้งานโดยไม่ใช้ Google: `npm run demo` แล้วเปิด http://localhost:3101/login เลือกบัญชีอาจารย์หรือนักศึกษา 12 คนได้ ใช้ข้อมูลสมมติและฐานข้อมูล Docker ชั่วคราวแยกจาก production เท่านั้น ดู [คู่มือ Demo](docs/demo.md) และรัน `npm run test:demo` เพื่อตรวจ flow ทั้งห้อง
+
 ```sh
 npm run lint
 npm run typecheck
