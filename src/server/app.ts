@@ -535,6 +535,7 @@ app.get('/api/assignments/:id/my-evaluations', (req: Request, res: Response) => 
         name: rightName,
       },
       currentChoice: existing ? existing.choice : null,
+      status: existing ? existing.status : 'PENDING',
     };
   });
 
@@ -980,6 +981,21 @@ app.get('/', (req: Request, res: Response) => {
       <p class="subtitle">ระบบประเมินผลนักศึกษาแบบ Pairwise Comparison</p>
     </header>
 
+    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <label for="user-selector" style="font-weight: 600; font-size: 0.85rem; color: #334155;">สลับผู้ใช้งาน (Demo Switcher):</label>
+        <select id="user-selector" data-testid="user-selector" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #94a3b8; font-size: 0.85rem; font-weight: 600; background: white; cursor: pointer;">
+          <option value="std_67015155" selected>ไนท์ (std_67015155) — กลุ่ม Aurora</option>
+          <option value="std_alice">อลิซ (std_alice) — กลุ่ม Cosmos</option>
+          <option value="std_bob">บ็อบ (std_bob) — กลุ่ม Borealis</option>
+        </select>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 0.85rem;">กลุ่มของคุณ: <strong id="evaluator-group-name">กลุ่ม Aurora (UX/UI Platform)</strong></span>
+        <button type="button" class="action-btn" id="revote-btn" style="display: none; padding: 4px 10px; font-size: 0.8rem; background: #e0f2fe; color: #0369a1; border-color: #7dd3fc;" title="ปลดล็อกเพื่อให้ผู้ใช้นี้แก้ไขคะแนนใหม่ได้ในโหมดทดสอบ">ประเมินใหม่ (Demo Re-vote)</button>
+      </div>
+    </div>
+
     <div class="nav-bar">
       <span>ผู้ประเมิน: <strong id="evaluator-name">ไนท์ (std_67015155)</strong></span>
       <span>บทบาท: <strong>STUDENT</strong></span>
@@ -1070,7 +1086,13 @@ app.get('/', (req: Request, res: Response) => {
     let currentIndex = 0;
     let isSubmitted = false;
     const assignmentId = 'asg_demo';
-    const userId = 'std_67015155';
+    let userId = 'std_67015155';
+
+    const userProfiles = {
+      'std_67015155': { name: 'ไนท์ (std_67015155)', group: 'กลุ่ม Aurora (UX/UI Platform)' },
+      'std_alice': { name: 'อลิซ (std_alice)', group: 'กลุ่ม Cosmos (AI Vision Guard)' },
+      'std_bob': { name: 'บ็อบ (std_bob)', group: 'กลุ่ม Borealis (IoT Smart Farm)' }
+    };
 
     let criteriaMap = {};
 
@@ -1087,6 +1109,14 @@ app.get('/', (req: Request, res: Response) => {
             ...c,
             criterionName: criteriaMap[c.criterionId] || 'User Experience (UX)'
           }));
+          const allSubmitted = pairs.length > 0 && pairs.every(p => p.status === 'SUBMITTED');
+          if (allSubmitted) {
+            lockInputs();
+            document.getElementById('result-panel').style.display = 'block';
+            document.getElementById('result-desc').textContent = 'ส่งผลการประเมินจำนวน ' + pairs.length + ' ข้อเรียบร้อยแล้ว';
+          } else {
+            unlockInputs();
+          }
           renderPair();
         }
       } catch (err) {
@@ -1145,6 +1175,19 @@ app.get('/', (req: Request, res: Response) => {
       });
       document.getElementById('autosave-status').textContent = 'สถานะ: ส่งผลการประเมินแล้ว (ล็อกคำตอบ ไม่สามารถแก้ไขได้)';
       document.getElementById('submit-btn').style.display = 'none';
+      document.getElementById('revote-btn').style.display = 'inline-block';
+    }
+
+    function unlockInputs() {
+      isSubmitted = false;
+      document.querySelectorAll('input[name="pair_eval"]').forEach(r => {
+        r.disabled = false;
+      });
+      document.getElementById('submit-btn').style.display = 'block';
+      document.getElementById('revote-btn').style.display = 'none';
+      document.getElementById('result-panel').style.display = 'none';
+      updateProgressAndSubmitState();
+      renderPair();
     }
 
     let debounceTimer = null;
@@ -1186,6 +1229,20 @@ app.get('/', (req: Request, res: Response) => {
       if (currentIndex < pairs.length - 1) { currentIndex++; renderPair(); }
     });
 
+    document.getElementById('user-selector').addEventListener('change', (e) => {
+      userId = e.target.value;
+      const profile = userProfiles[userId] || { name: userId, group: '-' };
+      document.getElementById('evaluator-name').textContent = profile.name;
+      document.getElementById('evaluator-group-name').textContent = profile.group;
+      currentIndex = 0;
+      document.getElementById('score-details').innerHTML = '';
+      loadData();
+    });
+
+    document.getElementById('revote-btn').addEventListener('click', () => {
+      unlockInputs();
+    });
+
     document.getElementById('submit-btn').addEventListener('click', async () => {
       const answeredCount = pairs.filter(p => p.currentChoice !== null && p.currentChoice !== undefined).length;
       if (answeredCount < pairs.length) {
@@ -1199,12 +1256,13 @@ app.get('/', (req: Request, res: Response) => {
           headers: {
             'Content-Type': 'application/json',
             'x-user-id': userId,
-            'Idempotency-Key': 'sub_' + Date.now()
+            'Idempotency-Key': 'sub_' + userId + '_' + Date.now()
           },
           body: JSON.stringify({ side: 'GROUP' })
         });
         if (res.ok) {
           const result = await res.json();
+          pairs.forEach(p => { p.status = 'SUBMITTED'; });
           document.getElementById('result-panel').style.display = 'block';
           document.getElementById('result-desc').textContent = 'ส่งผลการประเมินจำนวน ' + (result.submittedCount || pairs.length) + ' ข้อเรียบร้อยแล้ว';
           lockInputs();
@@ -1225,8 +1283,9 @@ app.get('/', (req: Request, res: Response) => {
           const groupScore = data.groupScore !== null && data.groupScore !== undefined ? data.groupScore.toFixed(3) : '9.000';
           const p = data.participationRatio !== undefined ? (data.participationRatio * 100).toFixed(0) : '100';
           const m = data.participationMultiplier !== undefined ? data.participationMultiplier : '1.0';
+          const profile = userProfiles[userId] || { name: userId, group: 'กลุ่มของคุณ' };
           detailsEl.innerHTML = '<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-top:8px;">' +
-            '<strong>สรุปคะแนนของคุณ ไนท์ (std_67015155):</strong><br>' +
+            '<strong>สรุปคะแนนของ ' + profile.name + ' (' + profile.group + '):</strong><br>' +
             '• คะแนนกลุ่ม (Group Score): <strong>' + groupScore + ' / 15.000</strong><br>' +
             '• การมีส่วนร่วมประเมิน (Participation p): <strong>' + p + '%</strong><br>' +
             '• ตัวคูณการประเมิน (Multiplier M): <strong>' + m + '</strong><br>' +
