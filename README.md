@@ -82,7 +82,7 @@ Cloud เป้าหมาย: Vercel Hobby + Supabase Free (แยก staging/
 
 - [Backlog และ AC](docs/backlog.md), [architecture](docs/architecture.md), [ERD](docs/erd.md), [OpenAPI](docs/openapi.yaml)
 - [Test plan](TEST_PLAN.md), [WS1–8 evidence checklist](docs/ws-evidence.md), [security review](docs/security-pre-check.md)
-- [Deployment and restore](docs/deployment.md), [decisions](docs/adr/ADR-004-pilot-deployment.md)
+- [Deployment and restore](docs/deployment.md), [ตั้งค่าและสาธิต CD](docs/cd-demo.md), [decisions](docs/adr/ADR-004-pilot-deployment.md)
 - [Measured performance and verification](docs/verification.md)
 - [Current cloud setup status](docs/cloud-status.md)
 

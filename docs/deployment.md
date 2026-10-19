@@ -4,7 +4,7 @@
 
 Confirmed initial owner: `67015105@kmitl.ac.th`. First classroom domain: `kmitl.ac.th`. User has Vercel and Supabase accounts; this alone does not give the agent access or supply OAuth/database credentials.
 
-Create separate Vercel projects and Supabase databases for `staging` and `production` (pilot). Free Supabase permits two active projects; check remaining quota first. Use Singapore/nearby region and a nearby Vercel function region. Google login requires a Google Workspace identity for university addresses (`email_verified` and matching `hd`); Gmail must be explicitly allowed by the classroom.
+The current pilot uses the existing `paireval-pilot` production project. CI uses disposable local PostgreSQL databases; `develop` does not deploy to that production project. A future hosted staging environment must have a separate Vercel project and database, after checking available free-tier quota. Use Singapore/nearby regions. Google login requires a Google Workspace identity for university addresses (`email_verified` and matching `hd`); Gmail must be explicitly allowed by the classroom.
 
 ## Supabase
 
@@ -24,9 +24,13 @@ Create separate Vercel projects and Supabase databases for `staging` and `produc
 
 ## CI/CD
 
-`feature/*` → PR into `develop` → staging; reviewed promotion to `main` → pilot. The GitHub workflow tests types, lint, OpenAPI, coverage, PostgreSQL behavior, production build, browser flows, performance and Docker build.
+`feature/*` → PR into `develop` → reviewed promotion to `main` → pilot. Feature branches, PRs and `develop` run CI only. The workflow tests types, lint, OpenAPI, coverage, PostgreSQL behavior, production build, browser flows, performance and Docker build.
 
-GitHub environments `staging` / `production` each need `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `MIGRATION_DATABASE_URL`. Set repository variable `DEPLOY_ENABLED=true` only after setup. The production environment must require a human reviewer. Disable Vercel Git auto-production deployment if using this gated workflow, so it cannot bypass approval. Use a separate Vercel project per environment; each deploy command promotes to that project's stable URL.
+See [the Thai CD setup and demo handoff](cd-demo.md). Keep repository variable `DEPLOY_ENABLED` absent/false until the updated workflow is on main and setup is complete. The `production` environment needs `VERCEL_TOKEN` as an environment secret, project/team IDs as environment variables, Required reviewers and a Selected branches rule for `main` only. Disable Vercel Git auto-production deployment so it cannot bypass CI/approval.
+
+After approval, `scripts/release-production.mjs` verifies the environment protections, target IDs and tested commit. It stages a production deployment with `--skip-domain`, checks health, login and Google-only providers using authenticated Vercel curl, rejects stale commits, then promotes that exact build. Vercel builds from the verified source so application secrets remain on Vercel; no environment files are pulled into CI. Actions are pinned to commit SHAs and the deployment CLI is pinned to 64.0.2.
+
+This pipeline does not migrate databases or need `MIGRATION_DATABASE_URL`. Changes under `drizzle/` compared with the currently live deployment's commit stop the release before staging, even if an earlier push was never deployed. Missing production commit metadata also stops release. Prepare a separately reviewed additive migration and compatible release for schema changes; do not bypass the guard or roll back student data. A public health check confirms app reachability only, not database availability or a complete Google login. Verify those through a real account after release.
 
 Enable branch protection on main/develop with required CI `verify` and `container`. Save a screenshot of a deliberately failing PR being blocked, then revert the deliberate break. Do not claim protection is enabled until verified by a repository administrator. The connected GitHub account may have write access without admin access.
 
