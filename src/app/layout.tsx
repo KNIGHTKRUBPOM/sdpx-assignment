@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@fontsource-variable/noto-sans-thai";
 import "./globals.css";
 import "./design.css";
 import Link from "next/link";

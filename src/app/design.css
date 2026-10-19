@@ -10,9 +10,10 @@
   --surface-soft: #fff3e8;
   --shadow: 0 4px 18px #29252406;
 }
-body { line-height: 1.75; -webkit-font-smoothing: antialiased; }
+body { font-family: "Noto Sans Thai Variable", "Noto Sans Thai", system-ui, sans-serif; line-height: 1.75; -webkit-font-smoothing: antialiased; }
 h1, h2, h3 { letter-spacing: normal; line-height: 1.45; }
 h1 { font-weight: 700; }
+h2, h3 { font-weight: 650; }
 .shell { max-width: 1280px; }
 .topbar { height: 84px; gap: 16px; border-bottom-color: #ead8c7; }
 .brand { font-size: 24px; letter-spacing: -.6px; }
