@@ -1,3 +1,9 @@
+export class ApiError extends Error {
+  constructor(message: string, public code?: string, public requestId?: string) { super(message); }
+}
+export function errorValue(error: unknown): Error {
+  return error instanceof Error ? error : new Error("ระบบขัดข้อง กรุณาลองใหม่");
+}
 export async function api<T>(
   path: string,
   method = "GET",
@@ -13,9 +19,9 @@ export async function api<T>(
         : typeof body === "string"
           ? body
           : JSON.stringify(body),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || "ระบบขัดข้อง");
+  }).catch(() => { throw new ApiError("เชื่อมต่อไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง", "NETWORK_ERROR"); });
+  const data = await response.json().catch(() => { throw new ApiError("เซิร์ฟเวอร์ตอบกลับไม่สมบูรณ์ กรุณาลองใหม่", "INVALID_RESPONSE", response.headers.get("X-Request-Id") ?? undefined); });
+  if (!response.ok) throw new ApiError(data.error?.message || "ระบบขัดข้อง กรุณาลองใหม่", data.error?.code, data.error?.requestId);
   return data as T;
 }
 export function dateText(value: string) {

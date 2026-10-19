@@ -2,6 +2,7 @@ import { Header, Footer } from "../../components/header";
 import { GoogleLogin } from "../../components/google-login";
 import { DemoLogin } from "../../components/demo-login";
 import { demoAccounts, demoEnabled } from "../../demo/config";
+import { InitialErrorPopup } from "../../components/error-popup";
 export const dynamic = "force-dynamic";
 export default async function Login({
   searchParams,
@@ -26,12 +27,7 @@ export default async function Login({
           <p>
             {demo ? "เลือกอาจารย์หรือนักศึกษาสาธิตเพื่อทดลองประเมิน สลับบัญชีได้โดยไม่ต้องใช้ Google หรือรหัสผ่าน" : "ใช้บัญชี Google ที่อาจารย์เพิ่มไว้ในรายชื่อห้องเรียน ระบบจะแสดงงานตามสิทธิ์ของคุณ"}
           </p>
-          {error && (
-            <div className="error" role="alert">
-              เข้าสู่ระบบไม่สำเร็จ กรุณาใช้บัญชี Google ที่ยืนยันอีเมลแล้ว
-              หรือบัญชี Google Workspace ของมหาวิทยาลัย
-            </div>
-          )}
+          {error && <InitialErrorPopup key={error} message={demo ? "เข้าสู่บัญชีสาธิตไม่สำเร็จ กรุณาเลือกบัญชีแล้วลองใหม่" : "เข้าสู่ระบบไม่สำเร็จ กรุณาใช้บัญชี Google ที่ยืนยันอีเมลแล้ว หรือบัญชี Google Workspace ของมหาวิทยาลัย"} />}
           {demo ? <DemoLogin accounts={demoAccounts} /> : <GoogleLogin configured={configured} />}
           <hr />
           <p className="muted">

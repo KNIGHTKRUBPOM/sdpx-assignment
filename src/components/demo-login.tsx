@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { Pending } from "./pending";
+import { ErrorPopup } from "./error-popup";
 
 export function DemoLogin({ accounts }: { accounts: { email: string; name: string }[] }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -21,7 +22,7 @@ export function DemoLogin({ accounts }: { accounts: { email: string; name: strin
     <label>เลือกบัญชีสาธิต<select name="email" data-testid="demo-account" disabled={busy}>
       {accounts.map((a) => <option key={a.email} value={a.email}>{a.name}</option>)}
     </select></label>
-    {error && <p className="error" role="alert">{error}</p>}
+    <ErrorPopup error={error} onDismiss={() => setError("")} />
     <button className="button full" data-testid="demo-login" disabled={busy}>
       {busy ? <Pending text="กำลังสลับบัญชี…" /> : "เข้าสู่ Demo →"}
     </button>

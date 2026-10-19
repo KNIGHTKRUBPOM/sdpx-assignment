@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Header, Footer } from "./header";
-import { api, dateText, statusLabel } from "./api";
+import { api, dateText, statusLabel, errorValue, ApiError } from "./api";
+import { ErrorPopup } from "./error-popup";
 import { Pending, LinkPending } from "./pending";
 import type { StudentScore } from "../domain/model";
 import type { ItemScoreSummary } from "../core/types";
@@ -66,7 +67,7 @@ const eventTime = () => Date.now();
 export function AssignmentWorkspace({ id }: { id: string }) {
   const [detail, setDetail] = useState<Detail>(),
     [tab, setTab] = useState("overview"),
-    [error, setError] = useState(""),
+    [error, setError] = useState<Error | string>(""),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
   const [evaluation, setEvaluation] = useState<Evaluation>(),
@@ -89,7 +90,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
     return d;
   };
   useEffect(() => {
-    void load().catch((e) => setError(e.message));
+    void load().catch((e) => setError(errorValue(e)));
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   const act = async (task: () => Promise<unknown>, text: string, refresh = true) => {
     if (busy) return;
@@ -101,7 +102,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
       if (refresh) await load();
       setMessage(text);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "ระบบขัดข้อง");
+      setError(errorValue(e));
     } finally {
       setBusy(false);
     }
@@ -138,7 +139,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
         setQuality(q);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "ระบบขัดข้อง");
+      setError(errorValue(e));
     } finally {
       setBusy(false);
     }
@@ -199,7 +200,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
       });
       if (!response.ok) {
         const e = await response.json();
-        throw new Error(e.error.message);
+        throw new ApiError(e.error.message, e.error.code, e.error.requestId);
       }
       const url = URL.createObjectURL(await response.blob());
       const a = document.createElement("a");
@@ -267,11 +268,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
             </button>
           ))}
         </div>
-        {error && (
-          <div className="error" role="alert">
-            {error}
-          </div>
-        )}
+        <ErrorPopup error={error} onDismiss={() => setError("")} />
         <div
           className="alert-live"
           aria-live="polite"

@@ -3,7 +3,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { Header, Footer } from "./header";
-import { api, dateText, statusLabel } from "./api";
+import { api, dateText, statusLabel, errorValue } from "./api";
+import { ErrorPopup } from "./error-popup";
 import { Pending, LinkPending } from "./pending";
 
 interface Room {
@@ -37,7 +38,7 @@ interface Roster {
 export function Workspace({ classroomId }: { classroomId?: string }) {
   const [data, setData] = useState<Dashboard>(),
     [roster, setRoster] = useState<Roster>(),
-    [error, setError] = useState(""),
+    [error, setError] = useState<Error | string>(""),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
   const [groupFilter, setGroupFilter] = useState("");
@@ -54,7 +55,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
     }
   };
   useEffect(() => {
-    void load().catch((e) => setError(e.message));
+    void load().catch((e) => setError(errorValue(e)));
   }, [classroomId]); // eslint-disable-line react-hooks/exhaustive-deps
   const act = async (task: () => Promise<unknown>, success: string, rosterOnly = false) => {
     if (busy) return;
@@ -67,7 +68,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
       else await load();
       setMessage(success);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "ระบบขัดข้อง");
+      setError(errorValue(e));
     } finally {
       setBusy(false);
     }
@@ -130,11 +131,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
           <div className="summary-item"><span>งานที่เปิดประเมิน</span><strong>{work.filter((a) => a.status === "OPEN").length}</strong></div>
           <div className="summary-item"><span>{classroomId ? "กลุ่มในห้อง" : "งานประเมินทั้งหมด"}</span><strong>{classroomId ? (roster ? roster.groups.length : "—") : work.length}</strong></div>
         </section>}
-        {error && (
-          <div role="alert" className="error">
-            {error}
-          </div>
-        )}
+        <ErrorPopup error={error} onDismiss={() => setError("")} />
         <div aria-live="polite" className="alert-live">
           {message}
         </div>

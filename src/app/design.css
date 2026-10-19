@@ -117,3 +117,10 @@ details.card[open] { border-color: #c9bfeb; }
   .tabs button { padding: 9px 10px; font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+.error-dialog { margin: auto; width: min(480px, calc(100% - 32px)); max-height: calc(100dvh - 40px); overflow: auto; padding: 30px; border: 1px solid var(--line); border-radius: 24px; background: white; color: var(--ink); box-shadow: 0 24px 80px #20273830; }
+.error-dialog::backdrop { background: #1c191766; backdrop-filter: blur(3px); }
+.dialog-symbol { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 18px; border-radius: 16px; background: #fff0eb; color: #a93221; font-size: 25px; font-weight: 700; }
+.error-dialog h2 { margin-bottom: 12px; font-size: 23px; }
+.error-dialog p { overflow-wrap: anywhere; white-space: pre-line; }
+.error-dialog details { margin-bottom: 22px; }
+.error-dialog .button { margin-top: 14px; }
