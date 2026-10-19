@@ -104,7 +104,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
         {busy && <div className="operation-status"><Pending /></div>}
         <div className="pagehead">
           <div>
-            <span className="eyebrow">YOUR LEARNING SPACE</span>
+            <span className="eyebrow">พื้นที่การเรียนรู้ของคุณ</span>
             {classroomId && (
               <Link href="/dashboard" className="backlink">
                 ← ห้องเรียนทั้งหมด
@@ -125,6 +125,11 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
             ออกจากระบบ
           </button>
         </div>
+        {data && <section className="workspace-summary" aria-label="สรุปพื้นที่การเรียนรู้" data-testid="workspace-summary">
+          <div className="summary-item"><span>{classroomId ? "สมาชิกในห้อง" : "ห้องเรียนของฉัน"}</span><strong>{classroomId ? (roster ? roster.members.length : "—") : data.classrooms.length}</strong></div>
+          <div className="summary-item"><span>งานที่เปิดประเมิน</span><strong>{work.filter((a) => a.status === "OPEN").length}</strong></div>
+          <div className="summary-item"><span>{classroomId ? "กลุ่มในห้อง" : "งานประเมินทั้งหมด"}</span><strong>{classroomId ? (roster ? roster.groups.length : "—") : work.length}</strong></div>
+        </section>}
         {error && (
           <div role="alert" className="error">
             {error}
@@ -286,7 +291,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
                   {roster.groups.map((g) => <option key={g.id} value={g.id}>{g.name} ({roster.members.filter((m) => m.groupId === g.id).length} คน)</option>)}
                 </select></label>
               </div>
-              <div className="card table-wrap">
+              <div className="card table-wrap" tabIndex={0} role="region" aria-label="รายชื่อสมาชิกห้องเรียน">
                 <table data-testid="roster-table">
                   <thead>
                     <tr>

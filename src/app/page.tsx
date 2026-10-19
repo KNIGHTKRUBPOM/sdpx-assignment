@@ -13,7 +13,7 @@ export default function Home() {
               <br />
               ทุกการมีส่วนร่วม
               <br />
-              <span style={{ color: "#3c7855" }}>ควรถูกมองเห็น</span>
+              <span style={{ color: "var(--deep)" }}>ควรถูกมองเห็น</span>
             </h1>
             <p>
               เปรียบเทียบทีละคู่

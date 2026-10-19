@@ -8,9 +8,14 @@ test("group filtering and link save show pending state without reloading dashboa
   await pilot.service.importRoster(pilot.context(pilot.owner), room.id,
     `email,group_name,display_name\na-${suffix}@example.edu,Alpha,Alice\nb-${suffix}@example.edu,Alpha,Bob\nc-${suffix}@example.edu,Beta,Carol\nd-${suffix}@example.edu,Beta,Dan`);
   await pilot.login(pilot.owner);
+  await page.goto("/dashboard");
+  await page.getByTestId("workspace-summary").waitFor();
+  await page.screenshot({ path: testInfo.outputPath("dashboard-desktop.png"), fullPage: true });
   let dashboardRequests = 0;
   page.on("request", (request) => { if (request.url().endsWith("/api/dashboard")) dashboardRequests++; });
   await page.goto(`/classrooms/${room.id}`);
+  await page.getByTestId("group-filter").waitFor();
+  await page.screenshot({ path: testInfo.outputPath("workspace-desktop.png"), fullPage: true });
   await page.getByTestId("group-filter").selectOption({ label: "Alpha (2 คน)" });
   await expect(page.getByTestId("roster-table").getByRole("row")).toHaveCount(3);
   await page.getByTestId("roster-search").fill("Alice");

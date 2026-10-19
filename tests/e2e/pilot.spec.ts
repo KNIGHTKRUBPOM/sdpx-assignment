@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures/pilot";
 import { EvaluationPage } from "./pages/evaluation";
 import AxeBuilder from "@axe-core/playwright";
 
-test("WS04 smoke: landing, login and protected routes", async ({ page }) => {
+test("WS04 smoke: landing, login and protected routes", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "ทุกผลงานมีคุณค่า",
@@ -11,6 +11,10 @@ test("WS04 smoke: landing, login and protected routes", async ({ page }) => {
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();
   expect(audit.violations).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("landing-desktop.png"), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("landing-mobile.png"), fullPage: true });
   await page.getByTestId("login-cta").click();
   await expect(page.getByTestId("google-login")).toBeVisible();
   await page.goto("/dashboard");

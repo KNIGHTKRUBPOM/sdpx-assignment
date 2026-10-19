@@ -4,7 +4,7 @@ export function Header() {
   return (
     <header className="topbar">
       <Link href="/" className="brand" aria-label="PairEval หน้าหลัก">
-        <span className="brand-mark">≋</span>PairEval
+        <span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 7h5M5 12h5M5 17h5M14 7h5M14 12h5M14 17h5" /><path d="m9 5 2 2-2 2m6 6-2 2 2 2" /></svg></span>PairEval
         <span className="badge optional">PILOT</span>
       </Link>
       <nav className="nav" aria-label="เมนูหลัก">
