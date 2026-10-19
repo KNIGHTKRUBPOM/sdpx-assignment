@@ -47,7 +47,7 @@
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.64.1",
-    "@redocly/cli": "^1.25.12",
+    "@redocly/cli": "^2.64.1",
     "@tailwindcss/postcss": "4.3.3",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.4",
