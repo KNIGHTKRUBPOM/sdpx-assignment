@@ -57,7 +57,7 @@
     "drizzle-kit": "0.31.11",
     "eslint": "9.39.5",
     "eslint-config-next": "16.4.0",
-    "fast-check": "^3.23.2",
+    "fast-check": "^4.10.2",
     "tailwindcss": "4.3.3",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
