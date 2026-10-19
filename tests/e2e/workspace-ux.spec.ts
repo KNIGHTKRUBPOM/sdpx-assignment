@@ -57,9 +57,18 @@ test("group filtering and link save show pending state without reloading dashboa
   await expect(page.getByRole("button", { name: "กำลังบันทึก…" })).toBeDisabled();
   release();
   await expect(page.getByText("บันทึกลิงก์ Alpha แล้ว", { exact: true })).toBeVisible();
+  const notification = page.getByTestId("notification-popup");
+  await expect(notification).toContainText("บันทึกลิงก์ Alpha แล้ว");
+  await expect(notification).toHaveCSS("position", "fixed");
+  await expect(page.locator(".alert-live")).toHaveCount(0);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("success-popup.png") });
   await expect(page.getByRole("link", { name: "เปิดผลงานที่บันทึกไว้ ↗" })).toHaveAttribute("href", "https://example.edu/new-artifact");
   expect(dashboardRequests).toBe(1);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("workspace-mobile.png"), fullPage: true });
+  await page.getByTestId("notification-dismiss").click();
+  await expect(notification).toBeEmpty();
+  await expect(page.getByLabel("ลิงก์ผลงาน", { exact: true })).toHaveValue("https://example.edu/new-artifact");
 });

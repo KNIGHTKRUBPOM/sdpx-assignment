@@ -494,11 +494,6 @@ td {
 .criterion-row button {
   padding: 10px;
 }
-.alert-live {
-  min-height: 26px;
-  color: #326c4a;
-  font-size: 13px;
-}
 .readonly {
   opacity: 0.65;
 }

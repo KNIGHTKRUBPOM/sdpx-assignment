@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Header, Footer } from "./header";
 import { api, dateText, statusLabel, errorValue, ApiError } from "./api";
 import { ErrorPopup } from "./error-popup";
+import { NotificationPopup } from "./notification-popup";
 import { Pending, LinkPending } from "./pending";
 import type { StudentScore } from "../domain/model";
 import type { ItemScoreSummary } from "../core/types";
@@ -93,15 +94,15 @@ export function AssignmentWorkspace({ id }: { id: string }) {
   useEffect(() => {
     void load().catch((e) => setError(errorValue(e)));
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const act = async (task: () => Promise<unknown>, text: string, refresh = true) => {
+  const act = async <T,>(task: () => Promise<T>, text: string | ((result: T) => string), refresh = true) => {
     if (busy) return;
     setBusy(true);
     setError("");
     setMessage("");
     try {
-      await task();
+      const result = await task();
       if (refresh) await load();
-      setMessage(text);
+      setMessage(typeof text === "function" ? text(result) : text);
     } catch (e) {
       setError(errorValue(e));
     } finally {
@@ -271,13 +272,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
         </div>
         <ErrorPopup error={error} onDismiss={() => setError("")} />
         {detail?.classroomArchived && <div className="notice" data-testid="archived-notice"><strong>ห้องเรียนนี้เก็บถาวรแล้ว · อ่านอย่างเดียว</strong><p>ดูคำตอบและรายงานเดิมได้ แต่ไม่สามารถบันทึก ส่งประเมิน หรือแก้คะแนนได้</p></div>}
-        <div
-          className="alert-live"
-          aria-live="polite"
-          data-testid="autosave-status"
-        >
-          {message}
-        </div>
+        <NotificationPopup message={message} onDismiss={() => setMessage("")} testId="autosave-status" autoDismiss={message.startsWith("✓ บันทึกฉบับร่างแล้ว")} />
         {tab === "overview" && (
           <div className="two-col">
             <section className="card">
@@ -315,18 +310,19 @@ export function AssignmentWorkspace({ id }: { id: string }) {
                     disabled={busy}
                     onClick={() =>
                       void act(
-                        async () =>
-                          setFeasibility(
-                            await api(`/assignments/${id}/feasibility`),
-                          ),
-                        "ตรวจสอบการจัดคู่แล้ว",
+                        async () => {
+                          const result = await api<{ message: string; achievableCoverage: number }>(`/assignments/${id}/feasibility`);
+                          setFeasibility(result);
+                          return result;
+                        },
+                        (result) => result.message,
                       )
                     }
                   >
                     ตรวจสอบจำนวนคู่และภาระงาน
                   </button>
                   {feasibility && (
-                    <div className="notice">{feasibility.message}</div>
+                    <p className="muted">Coverage สูงสุดที่จัดคู่ได้: {feasibility.achievableCoverage} คนต่อคู่</p>
                   )}
                   <label className="row">
                     <input

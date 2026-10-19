@@ -6,6 +6,7 @@ import { Header, Footer } from "./header";
 import { api, dateText, statusLabel, errorValue } from "./api";
 import { ErrorPopup } from "./error-popup";
 import { ArchiveDialog } from "./archive-dialog";
+import { NotificationPopup } from "./notification-popup";
 import { Pending, LinkPending } from "./pending";
 
 interface Room {
@@ -141,9 +142,7 @@ export function Workspace({ classroomId }: { classroomId?: string }) {
           setArchiving(false);
           void act(() => api(`/classrooms/${classroomId}/archive`, "POST", { name: room.classroom.name, reason }), "เก็บห้องเรียนถาวรแล้ว ข้อมูลเดิมยังอยู่");
         }} />}
-        <div aria-live="polite" className="alert-live">
-          {message}
-        </div>
+        <NotificationPopup message={message} onDismiss={() => setMessage("")} />
         {data && !data.noticeAccepted && (
           <div className="notice">
             <strong>ก่อนเริ่มใช้งานครั้งแรก</strong>
