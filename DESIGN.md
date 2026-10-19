@@ -1,13 +1,15 @@
 # PairEval design language
 
-Adapted from [Notion](https://github.com/VoltAgent/awesome-design-md/blob/main/design-md/notion/DESIGN.md) and [Linear](https://github.com/VoltAgent/awesome-design-md/blob/main/design-md/linear.app/DESIGN.md) analyses in VoltAgent/awesome-design-md (MIT). These are visual references, not application requirements or copied brand assets.
+Use [TypeUI Essential](https://www.typeui.sh/design-skills/essential) for clear layout, readable text, soft depth and 20 px cards; [TypeUI Charm](https://www.typeui.sh/design-skills/charm) for warm surfaces, rounded controls and consistent overlays. This adaptation uses the public design guidance, not a downloaded or purchased TypeUI skill package. Earlier [Notion/Linear references](https://github.com/VoltAgent/awesome-design-md) informed the workspace structure.
 
-- Mood: a calm, approachable academic workspace; light paper canvas, white surfaces, precise borders, generous spacing.
-- Primary action: violet #5645d4 with white text; hover #4534b3. Green means success; red means error. Do not communicate status through color alone.
-- Text: navy #202738, secondary #606575. Use the installed Thai/system sans stack without downloading proprietary fonts. Thai headings have normal tracking and comfortable line height.
-- Spacing: 4/8/12/16/24/32/48 px. Cards use 16 px corners, controls 10 px, subtle shadows. Use 44 px touch targets.
-- Structure: compact navigation, clear page title and context, actual-data summary strip, then task cards and tables. Never invent metrics, reviews, student data or completion claims.
-- Forms: persistent labels, visible focus, distinct primary and secondary actions. Retain inline errors, success messages and live pending indicators.
-- Tables: quiet header, row separators, hover highlight, horizontal scrolling inside the table frame. Group filters and search remain above the roster.
-- Motion: short color/border transitions; respect reduced motion. No large animations, remote fonts or new UI dependencies.
-- Responsive: summary cards collapse at 600 px; operational columns collapse at 850 px. Preserve keyboard navigation, privacy thresholds and every existing data-testid.
+The user chose a KMITL institution palette. [KMITL identifies สีแสด as its institution color](https://www.kmitl.ac.th/kmitl-symbols). Use orange and warm white rather than Essential blue or Charm coral. These app-specific hex values are an accessible interpretation, not a claim of exact official CI certification. Retain PairEval's own name and icon; do not imply this is an official university service.
+
+- Brand decoration: orange #e35205; actions and links: darker orange #b84405 with white text, hover #943600. Bright brand orange is not used for small text on white. Green means actual success; red means actual error. Labels also explain every status.
+- Surfaces: warm white #faf8f5 canvas, white panels, #fff3e8 supporting fills, #e8e2dc separators. Text #292524; supporting text #66605b. Avoid decorative success colors in summary statistics.
+- Spacing: 4/8/12/16/24/32/48 px, 1280 px container. Cards 20 px corners, dialogs 24 px, pill action buttons, 44 px touch targets. Keep long Thai headings at normal tracking with generous line height.
+- Structure: navigation, page context, real summary counts, then tasks and management. No invented metrics or student data. Synthetic examples must say so explicitly.
+- Forms: persistent labels, visible focus, input retained on failure, obvious primary action. Errors appear in accessible modal dialogs with a plain-language message and optional reference code. Escape/dismiss restores focus. Archive confirmation defaults focus to Cancel and requires exact room name plus reason.
+- Pending: show a spinner and action text, prevent duplicate writes, avoid fetching the entire dashboard after a link save. Navigation retains Next link pending feedback.
+- Tables: quiet header, separators and internal horizontal scroll; group dropdown and search sit above the roster. Archived rooms are secondary collapsed links; all writes are disabled in the UI and rejected by the server.
+- Motion: short color transitions, reduced-motion support, no remote fonts or new UI dependencies. Use the existing Thai/system sans font stack.
+- Responsive: summary collapses at 600 px; management columns at 850 px. Verify keyboard focus, modal accessibility, text contrast and horizontal overflow on mobile. Preserve privacy thresholds and all existing data-testid values.
