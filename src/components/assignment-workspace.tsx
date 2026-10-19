@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Header, Footer } from "./header";
 import { api, dateText, statusLabel, errorValue, ApiError } from "./api";
@@ -11,6 +11,7 @@ import { evaluationProgress, type MyProgress } from "../domain/evaluation-progre
 import type { StudentScore } from "../domain/model";
 import type { ItemScoreSummary } from "../core/types";
 import type { QualitySignalReport } from "../core/quality-signals/quality-signals";
+import type { InstructorGuide, SuggestedPair } from "../domain/instructor-guide";
 
 interface Detail {
   assignment: {
@@ -24,6 +25,7 @@ interface Detail {
   classroomName: string;
   classroomArchived: boolean;
   myProgress: MyProgress;
+  instructorGuide?: InstructorGuide;
 }
 interface Evaluation {
   assignmentId: string;
@@ -89,6 +91,14 @@ export function AssignmentWorkspace({ id }: { id: string }) {
       achievableCoverage: number;
     }>();
   const [startedAt, setStartedAt] = useState(0);
+  const [suggestionKey, setSuggestionKey] = useState("");
+  const evaluationPanel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if ((tab === "GROUP" || tab === "INDIVIDUAL") && evaluation?.side === tab) {
+      evaluationPanel.current?.scrollIntoView({ block: "start" });
+      evaluationPanel.current?.focus({ preventScroll: true });
+    }
+  }, [tab, evaluation?.side]);
   const updateEvaluation = (value: Evaluation) => {
     setEvaluation(value);
     setDetail((d) => d ? { ...d, myProgress: { ...d.myProgress, [value.side]: evaluationProgress(value.comparisons) } } : d);
@@ -191,6 +201,16 @@ export function AssignmentWorkspace({ id }: { id: string }) {
       }
     }, "✓ บันทึกฉบับร่างแล้ว", false);
   };
+  const assignAndOpen = (pair: Pick<SuggestedPair, "criterionId" | "itemAId" | "itemBId">) => act(async () => {
+    setEvaluation(undefined);
+    const result = await api<{ side: string }>(`/assignments/${id}/instructor-pairs`, "POST", pair);
+    const value = await api<Evaluation>(`/assignments/${id}/my-evaluations?side=${result.side}`);
+    setTab(result.side);
+    updateEvaluation(value);
+    setSelfScore(undefined);
+    setIndex(Math.max(0, value.comparisons.findIndex(p => p.currentChoice === null || p.currentChoice !== p.submittedChoice)));
+    setStartedAt(eventTime());
+  }, "เพิ่มคู่ให้อาจารย์ประเมินแล้ว");
   const submit = () =>
     act(async () => {
       await api(
@@ -226,6 +246,8 @@ export function AssignmentWorkspace({ id }: { id: string }) {
     isStaff = detail && ["OWNER", "CO_TEACHER"].includes(detail.role),
     pair = evaluation?.comparisons[index];
   const isOpen = a?.status === "OPEN" && !detail?.classroomArchived;
+  const guide = detail?.instructorGuide;
+  const suggested = guide?.suggestions.find(p => p.key === suggestionKey) ?? guide?.suggestions[0];
   return (
     <div className="shell">
       <Header />
@@ -283,7 +305,19 @@ export function AssignmentWorkspace({ id }: { id: string }) {
         <ErrorPopup error={error} onDismiss={() => setError("")} />
         {detail?.classroomArchived && <div className="notice" data-testid="archived-notice"><strong>ห้องเรียนนี้เก็บถาวรแล้ว · อ่านอย่างเดียว</strong><p>ดูคำตอบและรายงานเดิมได้ แต่ไม่สามารถบันทึก ส่งประเมิน หรือแก้คะแนนได้</p></div>}
         <NotificationPopup message={message} onDismiss={() => setMessage("")} testId="autosave-status" autoDismiss={message.startsWith("✓ บันทึกฉบับร่างแล้ว")} />
-        {detail?.myProgress && (detail.role === "STUDENT" || detail.myProgress.GROUP.total + detail.myProgress.INDIVIDUAL.total > 0) && <EvaluationProgress progress={detail.myProgress} onOpen={busy ? undefined : (side) => void selectTab(side)} readOnly={!isOpen} />}
+        {isStaff && guide && <section className="card" aria-labelledby="instructor-guide-title" data-testid="instructor-guide">
+          <div className="card-top"><h2 id="instructor-guide-title">อาจารย์ต้องทำอะไรต่อ</h2><span className="badge">คะแนนรายบุคคลรอเปิดเผย {guide.needsEvaluators + guide.waitingForSubmissions} คน</span></div>
+          <p data-testid="instructor-guide-counts">นักศึกษาที่มีผู้ประเมินไม่ถึง 3 คน: {guide.needsEvaluators} คน · นักศึกษาที่รอคำตอบจากผู้ประเมินเดิม: {guide.waitingForSubmissions} คน</p>
+          {isOpen && suggested ? <>
+            <p className="muted">อาจารย์ช่วยเป็นผู้ประเมินเพิ่มได้ รับคู่ด้านล่างแล้วตอบและกดส่ง ระบบจะปรับรายการแนะนำให้ใหม่</p>
+            <div className="form-row"><label>คู่รายบุคคลที่ช่วยได้<select data-testid="instructor-suggestion" value={suggested.key} disabled={busy} onChange={e => setSuggestionKey(e.target.value)}>{guide.suggestions.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}</select></label>
+            <button className="button" data-testid="instructor-start-suggestion" disabled={busy || !!detail.myProgress.INDIVIDUAL.outstanding} onClick={() => void assignAndOpen(suggested)}>รับคู่นี้และไปประเมิน →</button></div>
+            {!!detail.myProgress.INDIVIDUAL.outstanding && <p>ทำคู่ที่รับไว้ให้เสร็จและกดส่งก่อนรับคู่ถัดไป ใช้ปุ่มประเมินต่อด้านล่างได้เลย</p>}
+          </> : <p>{!isOpen ? "ดูสถานะได้ แต่รับคู่และส่งคำตอบได้เฉพาะช่วงเปิดประเมิน" : guide.needsEvaluators ? "ยังไม่มีคู่ที่อาจารย์ช่วยเพิ่มได้ ตรวจขนาดกลุ่มและการจัดคู่ในรายงาน" : guide.waitingForSubmissions ? "รอผู้ประเมินที่รับคู่ไว้ส่งคำตอบ ไม่จำเป็นต้องเพิ่มคู่ให้อาจารย์" : "ผู้ประเมินครบตามเกณฑ์แล้ว ตรวจรายงานก่อนปิดรับและยืนยันคะแนน"}</p>}
+          <div className="row"><button className="button secondary small" data-testid="instructor-open-reports" disabled={busy} onClick={() => void selectTab("reports")}>ดูรายงานและตรวจความครบถ้วน</button>
+          <button className="button secondary small" data-testid="instructor-refresh-guide" disabled={busy} onClick={() => void act(load, "อัปเดตสถานะแล้ว", false)}>อัปเดตสถานะ ↻</button></div>
+        </section>}
+        {detail?.myProgress && (detail.role === "STUDENT" || isStaff) && <EvaluationProgress progress={detail.myProgress} instructor={!!isStaff} onOpen={busy ? undefined : (side) => void selectTab(side)} readOnly={!isOpen} />}
         {tab === "overview" && (
           <div className="two-col">
             <section className="card">
@@ -431,7 +465,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
         )}
         {(tab === "GROUP" || tab === "INDIVIDUAL") &&
           evaluation?.side === tab && (
-            <div style={{ maxWidth: 720, margin: "auto" }}>
+            <div ref={evaluationPanel} tabIndex={-1} data-testid="evaluation-panel" style={{ maxWidth: 720, margin: "auto" }}>
               {evaluation.comparisons.length === 0 ? (
                 <div className="card empty">
                   <h2>ไม่มีคู่ที่ต้องประเมินในส่วนนี้</h2>
@@ -749,20 +783,7 @@ export function AssignmentWorkspace({ id }: { id: string }) {
                               <button
                                 className="button secondary small"
                                 disabled={busy}
-                                onClick={() =>
-                                  void act(async () => {
-                                    const result = await api<{ side: string }>(
-                                      `/assignments/${id}/instructor-pairs`,
-                                      "POST",
-                                      {
-                                        criterionId: c.criterionId,
-                                        itemAId: c.itemAId,
-                                        itemBId: c.itemBId,
-                                      },
-                                    );
-                                    await selectTab(result.side);
-                                  }, "เพิ่มคู่ให้อาจารย์ประเมินแล้ว")
-                                }
+                                onClick={() => void assignAndOpen({ criterionId: c.criterionId, itemAId: c.itemAId, itemBId: c.itemBId })}
                               >
                                 ประเมินเอง
                               </button>

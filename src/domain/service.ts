@@ -31,6 +31,7 @@ import {
 } from "./policy";
 import { FORMULA_VERSION, scoreItem, type ScopedComparison } from "./scoring";
 import { evaluationProgress, type MyProgress } from "./evaluation-progress";
+import { instructorGuide } from "./instructor-guide";
 
 type Executor = Database | Transaction;
 const id = () => randomUUID();
@@ -656,12 +657,24 @@ export class PairEvalService {
       assignmentId,
     );
     const { snapshot: _snapshot, seed: _seed, ...publicAssignment } = a;
+    const guide = staff.includes(member.role as Role) && a.status !== "DRAFT" && a.config.individualMaxScore > 0
+      ? (async () => {
+          const [data, rows] = await Promise.all([
+            this.classData(this.db, a.classroomId),
+            this.db.select({ criterionId: t.pairs.criterionId, itemAId: t.pairs.itemAId, itemBId: t.pairs.itemBId, evaluatorId: t.pairs.evaluatorId, submittedChoice: t.answers.submittedChoice })
+              .from(t.pairs).leftJoin(t.answers, eq(t.answers.pairId, t.pairs.id))
+              .where(and(eq(t.pairs.assignmentId, assignmentId), eq(t.pairs.generation, a.generation), eq(t.pairs.side, "INDIVIDUAL"))),
+          ]);
+          return instructorGuide(rows, data.students.map(s => ({ id: s.id, name: s.displayName, groupName: data.groups.find(g => g.id === s.groupId)?.name ?? "" })), a.criteria, ctx.user.id);
+        })() : Promise.resolve(undefined);
+    const [myProgress, guidance] = await Promise.all([this.myProgress(ctx, [assignmentId]), guide]);
     return {
       assignment: { ...publicAssignment, status: effectiveStatus(a) },
       role: member.role,
       classroomName: classroom.name,
       classroomArchived: !!classroom.archivedAt,
-      myProgress: (await this.myProgress(ctx, [assignmentId]))[assignmentId],
+      myProgress: myProgress[assignmentId],
+      instructorGuide: guidance,
     };
   }
 

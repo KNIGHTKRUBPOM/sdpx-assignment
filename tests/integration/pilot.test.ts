@@ -137,6 +137,8 @@ describe.sequential(
       ).rejects.toMatchObject({ status: 409 });
     });
     it("enforces pair ownership, role and roster locks", async () => {
+      expect((await service.detail(ctx(student), assignmentId)).instructorGuide).toBeUndefined();
+      expect((await service.detail(ctx(owner), assignmentId)).instructorGuide).toMatchObject({ needsEvaluators: 0, waitingForSubmissions: 12, suggestions: [] });
       await expect(
         service.save(ctx(otherStudent), pairId, {
           choice: 1,
